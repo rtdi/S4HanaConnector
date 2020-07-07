@@ -22,7 +22,8 @@ The default login for this startup method is: **rtdi / rtdi!io**
 
 The probably better start command is to mount two host directories into the container. In this example the host's /data/files contains all files to be loaded into Kafka and the /data/config is an (initially) empty directory where all settings made when configuring the connector will be stored permanently.
 
-    docker run -d -p 80:8080 --rm -v /data/files:/data/ -v /data/config:/usr/local/tomcat/conf/security    --name s4hanaconnector  rtdi/s4hanaconnector
+    docker run -d -p 80:8080 --rm -v /data/files:/data/ -v /data/config:/usr/local/tomcat/conf/security \
+        --name s4hanaconnector  rtdi/s4hanaconnector
 
 
 For proper start commands, especially https and security related, see the [ConnectorRootApp](https://github.com/rtdi/ConnectorRootApp) project, this application is based on.
@@ -33,23 +34,45 @@ For proper start commands, especially https and security related, see the [Conne
 
 The first step is to connect the application to a Kafka server, in this example Confluent Cloud.
 
-<img src="https://github.com/rtdi/S4HanaConnector/raw/master/docs/media/DemoConnector-PipelineConfig.png" width="50%">
+<img src="https://github.com/rtdi/S4HanaConnector/raw/master/docs/media/S4HanaConnector-PipelineConfig.png" width="50%">
 
 
 ### Define a Connection
 
 A Connection holds all information about the S/4Hana underlying Hana database. It connects via the Hana JDBC driver, not the ABAP layer.
-The database use should be a new user which has read permissions on the S/4Hana tables and the permissions to create triggers on the tables.
+The database user should be a new user which has read permissions on the S/4Hana tables and the permissions to create triggers on the SAP tables.
 Inside the own schema two control tables are created which are also the target of the triggers.
+
+Clicking on the Add icon allows opens the setting dialog
+
+<img src="https://github.com/rtdi/S4HanaConnector/raw/master/docs/media/S4HanaConnector-connectionadd.png" width="50%">
+
+The JDBCURL for a Hana database is usually in the format jdbc:sap://<hostname>:3<instance number>15/<database container>, e.g. jdbc:sap://dbhost:39015/HXE.
+The source database schema is the Hana schema name where all SAP tables can be found.
+
+<img src="https://github.com/rtdi/S4HanaConnector/raw/master/docs/media/S4HanaConnector-connectiondefine.png" width="50%">
+
 
 ### Define the Schemas
 
-The next step is to create the Avro Schemas for the SAP tables. 
+The next step is to create the Avro Schemas for the SAP tables.
+
+Under Manage Schemas all already imported schemas can be found.
+
+<img src="https://github.com/rtdi/S4HanaConnector/raw/master/docs/media/S4HanaConnector-manageschemas.png" width="50%">
+
+Initially there will be none so clicking on the Add icon opens the dialog where all S/4Hana tables are shown.
+The screen supports search capabilities and all selected tables are created as new schemas when saving.
+
+<img src="https://github.com/rtdi/S4HanaConnector/raw/master/docs/media/S4HanaConnector-manageschemas2.png" width="50%">
+
 
 ### Create a Producer
 
 A Producer stands for the process creating the data. One producer writes all data into a single topic to ensure transactional consistency.
 For example a producer might capture all Material Management related data and produce that data in the topic MaterialManagement.
+
+<img src="https://github.com/rtdi/S4HanaConnector/raw/master/docs/media/S4HanaConnector-producer.png" width="50%">
 
 
 ### Data content
