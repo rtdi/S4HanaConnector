@@ -1,0 +1,166 @@
+{
+	"mastertable": "sap.hana.democontent.epm.data::SO.Header",
+	"alias": "L1",
+	"columnmappings": [
+		{
+			"alias": "SALESORDERID",
+			"sql": "\"L1\".\"SALESORDERID\"",
+			"hanadatatype": "NVARCHAR(10)"
+		},
+		{
+			"alias": "HISTORY.CREATEDBY.EMPLOYEEID",
+			"sql": "\"L1\".\"HISTORY.CREATEDBY.EMPLOYEEID\"",
+			"hanadatatype": "NVARCHAR(10)"
+		},
+		{
+			"alias": "HISTORY.CREATEDAT",
+			"sql": "\"L1\".\"HISTORY.CREATEDAT\"",
+			"hanadatatype": "DATE"
+		},
+		{
+			"alias": "HISTORY.CHANGEDBY.EMPLOYEEID",
+			"sql": "\"L1\".\"HISTORY.CHANGEDBY.EMPLOYEEID\"",
+			"hanadatatype": "NVARCHAR(10)"
+		},
+		{
+			"alias": "HISTORY.CHANGEDAT",
+			"sql": "\"L1\".\"HISTORY.CHANGEDAT\"",
+			"hanadatatype": "DATE"
+		},
+		{
+			"alias": "NOTEID",
+			"sql": "\"L1\".\"NOTEID\"",
+			"hanadatatype": "NVARCHAR(10)"
+		},
+		{
+			"alias": "PARTNER.PARTNERID",
+			"sql": "\"L1\".\"PARTNER.PARTNERID\"",
+			"hanadatatype": "NVARCHAR(10)"
+		},
+		{
+			"alias": "CURRENCY",
+			"sql": "\"L1\".\"CURRENCY\"",
+			"hanadatatype": "NVARCHAR(5)"
+		},
+		{
+			"alias": "GROSSAMOUNT",
+			"sql": "\"L1\".\"GROSSAMOUNT\"",
+			"hanadatatype": "DECIMAL(15, 2)"
+		},
+		{
+			"alias": "NETAMOUNT",
+			"sql": "\"L1\".\"NETAMOUNT\"",
+			"hanadatatype": "DECIMAL(15, 2)"
+		},
+		{
+			"alias": "TAXAMOUNT",
+			"sql": "\"L1\".\"TAXAMOUNT\"",
+			"hanadatatype": "DECIMAL(15, 2)"
+		},
+		{
+			"alias": "LIFECYCLESTATUS",
+			"sql": "\"L1\".\"LIFECYCLESTATUS\"",
+			"hanadatatype": "NVARCHAR(1)"
+		},
+		{
+			"alias": "BILLINGSTATUS",
+			"sql": "\"L1\".\"BILLINGSTATUS\"",
+			"hanadatatype": "NVARCHAR(1)"
+		},
+		{
+			"alias": "DELIVERYSTATUS",
+			"sql": "\"L1\".\"DELIVERYSTATUS\"",
+			"hanadatatype": "NVARCHAR(1)"
+		}
+	],
+	"relations": [
+		{
+			"detail": {
+				"mastertable": "sap.hana.democontent.epm.data::SO.Item",
+				"alias": "L2",
+				"columnmappings": [
+					{
+						"alias": "SALESORDERID",
+						"sql": "\"L2\".\"SALESORDERID\"",
+						"hanadatatype": "NVARCHAR(10)"
+					},
+					{
+						"alias": "SALESORDERITEM",
+						"sql": "\"L2\".\"SALESORDERITEM\"",
+						"hanadatatype": "NVARCHAR(10)"
+					},
+					{
+						"alias": "PRODUCT.PRODUCTID",
+						"sql": "\"L2\".\"PRODUCT.PRODUCTID\"",
+						"hanadatatype": "NVARCHAR(10)"
+					},
+					{
+						"alias": "NOTEID",
+						"sql": "\"L2\".\"NOTEID\"",
+						"hanadatatype": "NVARCHAR(10)"
+					},
+					{
+						"alias": "CURRENCY",
+						"sql": "\"L2\".\"CURRENCY\"",
+						"hanadatatype": "NVARCHAR(5)"
+					},
+					{
+						"alias": "GROSSAMOUNT",
+						"sql": "\"L2\".\"GROSSAMOUNT\"",
+						"hanadatatype": "DECIMAL(15, 2)"
+					},
+					{
+						"alias": "NETAMOUNT",
+						"sql": "\"L2\".\"NETAMOUNT\"",
+						"hanadatatype": "DECIMAL(15, 2)"
+					},
+					{
+						"alias": "TAXAMOUNT",
+						"sql": "\"L2\".\"TAXAMOUNT\"",
+						"hanadatatype": "DECIMAL(15, 2)"
+					},
+					{
+						"alias": "ITEMATPSTATUS",
+						"sql": "\"L2\".\"ITEMATPSTATUS\"",
+						"hanadatatype": "NVARCHAR(1)"
+					},
+					{
+						"alias": "OPITEMPOS",
+						"sql": "\"L2\".\"OPITEMPOS\"",
+						"hanadatatype": "NVARCHAR(10)"
+					},
+					{
+						"alias": "QUANTITY",
+						"sql": "\"L2\".\"QUANTITY\"",
+						"hanadatatype": "DECIMAL(13, 3)"
+					},
+					{
+						"alias": "QUANTITYUNIT",
+						"sql": "\"L2\".\"QUANTITYUNIT\"",
+						"hanadatatype": "NVARCHAR(3)"
+					},
+					{
+						"alias": "DELIVERYDATE",
+						"sql": "\"L2\".\"DELIVERYDATE\"",
+						"hanadatatype": "DATE"
+					}
+				],
+				"relations": null,
+				"pkcolumns": [
+					"SALESORDERID",
+					"SALESORDERITEM"
+				]
+			},
+			"schemafield": "items",
+			"joincondition": [
+				{
+					"left": "SALESORDERID",
+					"right": "SALESORDERID"
+				}
+			]
+		}
+	],
+	"pkcolumns": [
+		"SALESORDERID"
+	]
+}

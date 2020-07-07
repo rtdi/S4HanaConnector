@@ -1,0 +1,105 @@
+
+<FlexBox height="80%">
+	<items>
+		<t:TreeTable
+		        id="SourceTree"
+		        rows="{path:'source>/data', parameters: {arrayNames:['children']}}"
+		        selectionMode="Single"
+		        visibleRowCountMode="Auto"
+		        enableSelectAll="false"
+		        ariaLabelledBy="title"
+		        toggleOpenState="onToggleSourceHierarchyOpenState">
+		    <t:extension>
+		        <Toolbar>
+		            <ToolbarSpacer/>
+		            <Button text="Collapse all" press="onSourceCollapseAll"/>
+		      	</Toolbar>
+		    </t:extension>
+			<t:dragDropConfig>
+				<dnd:DragInfo
+					groupName="s2t"
+					sourceAggregation="rows"
+					dragStart="onDragStart" />
+			</t:dragDropConfig>
+		    <t:columns>
+		        <t:Column>
+		            <Label text="Node"/>
+		            <t:template>
+		                <Text text="{source>displayname}" wrapping="false" renderWhitespace="false" />
+		            </t:template>
+		        </t:Column>
+		    </t:columns>
+		</t:TreeTable>
+		<t:TreeTable
+		        id="TargetTree"
+		        rows="{path:'target>/', parameters: {arrayNames:['children']}}"
+		        selectionMode="Single"
+		        visibleRowCountMode="Auto"
+		        enableSelectAll="false"
+		        ariaLabelledBy="title">
+		    <t:extension>
+		        <Toolbar>
+					<Label text="Business Object Name" />
+					<Input value="{target>/name}" />
+		            <ToolbarSpacer/>
+		            <Button text="Collapse all" press="onTargetCollapseAll"/>
+		      	</Toolbar>
+		    </t:extension>
+			<t:dragDropConfig>
+				<dnd:DropInfo
+					groupName="s2t"
+					targetAggregation="rows"
+					dropPosition="On"
+					drop="onDropMapping" />
+			</t:dragDropConfig>
+		    <t:columns>
+		        <t:Column>
+		            <Label text="Table"/>
+		            <t:template>
+		                <Link text="{target>mastertable}" wrapping="false" press="onSelectTarget"/>
+		            </t:template>
+		        </t:Column>
+		        <t:Column>
+		            <Label text="Name of Structure"/>
+		            <t:template>
+		                <Input value="{target>parentfieldname}" visible="{path: 'target>root', formatter: '.disableControl'}" />
+		            </t:template>
+		        </t:Column>
+		    </t:columns>
+		</t:TreeTable>
+	</items>
+</FlexBox>
+
+<t:Table
+	rows="{join>/joincondition}"
+	>
+	<t:columns>
+		<t:Column>
+			<Label text="Master" />
+			<t:template>
+				<Input value="{join>left}" />
+			</t:template>
+		</t:Column>
+		<t:Column width="5%">
+			<Label text="=" />
+			<t:template>
+				<Text text="="/>
+			</t:template>
+		</t:Column>
+		<t:Column>
+			<Label text="Detail" />
+			<t:template>
+				<Input value="{join>right}" />
+			</t:template>
+		</t:Column>
+		<t:Column>
+			<Label text="Menu" />
+			<t:template>
+				<t:RowAction>
+					<t:RowActionItem type="Delete" press="onJoinConditionDelete"/>
+				</t:RowAction>
+			</t:template>
+		</t:Column>
+	</t:columns>
+</t:Table>
+

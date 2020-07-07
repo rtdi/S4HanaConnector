@@ -1,0 +1,138 @@
+showFooter : function() {
+	return true;
+},
+init : function() {
+	function convertUI(table) {
+		if (!!table) {
+			if (!!table.relations) {
+				var tree = [];
+				for (let v of table.relations) {
+					tree[tree.length] = {"tablename" : v.detail.mastertable, "joincondition" : v.joincondition, "children" : convertUI(v.detail) };
+				}
+				return tree;
+			}
+		}
+		return null;
+	}
+	var oModelJoin = new JSONModel();
+	this.getView().setModel(oModelJoin, "join");
+	
+	var oModel = new JSONModel();
+	var that = this;
+	var sName = jQuery.sap.getUriParameters().get("name");
+	var sConnectionname = jQuery.sap.getUriParameters().get("connectionname");
+	oModel.loadData("../rest/connections/" + encodeURI(sConnectionname) + "/sourcetree");
+	if (sName != null) {
+		var oModelTarget = new JSONModel();
+		oModelTarget.loadData("../rest/connections/" + encodeURI(sConnectionname) + "/businessobject/" + encodeURI(sName), null, false);
+		var oData = oModelTarget.getData();
+		var oModelData = new JSONModel();
+		oModelData.setProperty("/children/0", {"mastertable" : oData.mastertable, "children" : oData.children, "root" : true } );
+		oModelData.setProperty("/name", oData.name);
+		this.getView().setModel(oModelData, "target");
+	}
+	this.getView().setModel(oModel, "source");
+	var oStateModel = this.getView().getModel("state");
+	oStateModel.setProperty("/title", "Edit Business Object");
+	oStateModel.setProperty("/breadcrumbs", [ 
+		{"text" : "Homepage", "link" : "./Home"}, 
+		{"text" : "Connections", "link" : "./Connections"}, 
+		{"text" : "Schemas", "link" : "./Browse?connectionname=" + encodeURI(sConnectionname) }
+	] );
+},
+edit : function(oEvent) {
+},
+save : function(oEvent) {
+	var oModel = this.getView().getModel("target");
+	var sName = oModel.getProperty("/name");
+	var sConnectionname = jQuery.sap.getUriParameters().get("connectionname");
+	if (!!sName) {
+		var oModelData = new JSONModel(); // The UI requires all records within the children array, the restful service wants the data in the root already. 
+		oModelData.setProperty("/name", sName);
+		oModelData.setProperty("/mastertable", oModel.getProperty("/children/0/mastertable"));
+		oModelData.setProperty("/children", oModel.getProperty("/children/0/children"));
+		
+		
+		var xmlhttp = new XMLHttpRequest();
+		xmlhttp.open("POST", "../rest/connections/" + encodeURI(sConnectionname) + "/businessobject/" + encodeURI(sName));
+		xmlhttp.setRequestHeader("Content-Type", "application/json");
+		xmlhttp.onreadystatechange = function() {
+		    if (xmlhttp.readyState == 4) {
+		    	if (xmlhttp.status == 200) {
+		        	sap.m.MessageToast.show(xmlhttp.responseText);
+		    	} else {
+		    		sap.m.MessageToast.show(xmlhttp.responseText);
+		    	}
+		    }
+		}
+		xmlhttp.send(oModelData.getJSON());
+	} else {
+		sap.m.MessageToast.show("No name of the schema entered");
+	}
+},
+cancel : function(oEvent) {
+},
+onDropMapping : function(oEvent) {
+	var oSourceModel = this.getView().getModel("source");
+	var oSourcePath = oEvent.getParameter("draggedControl").getBindingContext("source").getPath();
+	var oSourceRow = oSourceModel.getProperty(oSourcePath);
+
+	var oTargetModel = this.getView().getModel("target");
+	var oTargetBinding = oEvent.getParameter("droppedControl").getBindingContext("target");
+	if (!!!oTargetBinding) {
+		var oModelTarget = new JSONModel();
+		oModelTarget.setData({"children" : [ { "mastertable" : oSourceRow.nodeid, "root" : true  } ] } );
+		this.getView().setModel(oModelTarget, "target");
+	} else {
+		var oTargetPath = oTargetBinding.getPath();
+		var oTargetRow = oTargetModel.getProperty(oTargetPath);
+		
+		if (!!oTargetRow) {
+			if (!!oTargetRow.children) {
+				oTargetRow.children.push( { "mastertable" : oSourceRow.nodeid, "joincondition" : oSourceRow.joincondition} );
+			} else {
+				oTargetRow.children = [ { "mastertable" : oSourceRow.nodeid, "joincondition" : oSourceRow.joincondition } ];
+			}
+		} else {
+			oTargetRow = [ { "mastertable" : oSourceRow.nodeid } ];
+		}
+		oTargetModel.setProperty(oTargetPath, oTargetRow);
+	}
+	this.getView().byId("TargetTree").expandToLevel(10);
+},
+onDragStart : function(oEvent) {
+	var oSourceModel = this.getView().getModel("source");
+	var oSourcePath = oEvent.getParameter("target").getBindingContext("source").getPath();
+	var oSourceRow = oSourceModel.getProperty(oSourcePath);
+	if (!!oSourceRow && !!!oSourceRow.importable) {
+		oEvent.preventDefault();
+	}
+},
+onSelectTarget : function(oEvent) {
+	var oTargetModel = this.getView().getModel("target");
+	var oTargetPath = oEvent.getSource().getBindingContext("target").getPath();
+	var oTargetRow = oTargetModel.getProperty(oTargetPath);
+	var oModelJoin = this.getView().getModel("join");
+	oModelJoin.setData(oTargetRow);
+},
+onToggleSourceHierarchyOpenState : function(oEvent) {
+	if (oEvent.getParameter("expanded")) {
+		var oSourceModel = this.getView().getModel("source");
+		var oSourcePath = oEvent.getParameter("rowContext").getPath();
+		var oSourceRow = oSourceModel.getProperty(oSourcePath);
+		var sConnectionname = jQuery.sap.getUriParameters().get("connectionname");
+		var xmlhttp = new XMLHttpRequest();
+		xmlhttp.open("GET", "../rest/connections/" + encodeURI(sConnectionname) + "/sourcetree?nodeid=" + encodeURI(oSourceRow.nodeid));
+		xmlhttp.setRequestHeader("Content-Type", "application/json");
+		xmlhttp.onreadystatechange = function() {
+		    if (xmlhttp.readyState == 4) {
+		    	if (xmlhttp.status == 200) {
+		    		oSourceModel.setProperty(oSourcePath + "/children", JSON.parse(xmlhttp.responseText).data );
+		    	} else {
+		    		alert(xmlhttp.responseText);
+		    	}
+		    }
+		}
+		xmlhttp.send();
+	}
+}

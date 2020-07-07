@@ -1,0 +1,382 @@
+package io.rtdi.bigdata.s4hanaconnector;
+
+import java.io.File;
+import java.io.IOException;
+import java.util.ArrayList;
+import java.util.HashSet;
+import java.util.List;
+import java.util.Set;
+
+import com.fasterxml.jackson.annotation.JsonIgnore;
+import com.fasterxml.jackson.annotation.JsonInclude.Include;
+import com.fasterxml.jackson.databind.ObjectMapper;
+
+import io.rtdi.bigdata.connector.connectorframework.exceptions.ConnectorRuntimeException;
+import io.rtdi.bigdata.connector.connectorframework.rest.entity.BrowsingNode.Condition;
+import io.rtdi.bigdata.connector.pipeline.foundation.exceptions.PropertiesException;
+import io.rtdi.bigdata.connector.pipeline.foundation.utils.IOUtils;
+
+public abstract class RelationalObject<R extends RelationalObject<R>> {
+
+	private String mastertable; // e.g. salesorder as L1
+	private String alias;
+	private List<ColumnMapping> columnmappings; // e.g. orderid <- L1.orderid  
+	private List<R> children;
+	private List<String> pkcolumns;
+	private RelationalObject<R> parent = null;
+	private List<Condition> joinwithparent = null;
+	private static ObjectMapper mapper;
+	protected Set<String> fkcolumns = new HashSet<>();
+	protected String parentfieldname;
+
+	static {
+		mapper = new ObjectMapper();
+	}
+
+	
+	public RelationalObject() {
+	}
+
+	public RelationalObject(String mastertable, String alias) {
+		this.mastertable = mastertable;
+		this.alias = alias;
+	}
+
+
+	public List<Condition> getJoincondition() {
+		return joinwithparent;
+	}
+
+	public void setJoincondition(List<Condition> joincondition) {
+		this.joinwithparent = joincondition;
+		for (Condition c : joincondition) {
+			fkcolumns.add(c.getRight());
+		}
+	}
+
+	public void addJoinCondition(String left, String right) {
+		if (joinwithparent == null) {
+			joinwithparent = new ArrayList<>();
+		}
+		joinwithparent.add(new Condition(left, right));
+		fkcolumns.add(right);
+	}
+		
+	
+	protected abstract R createNewRelationalObject(String detailtable, String alias) throws ConnectorRuntimeException;
+	
+	
+	public static class ColumnMapping {
+		private String alias;
+		private String sql;
+		private String hanadatatype;
+
+		public ColumnMapping() {
+		}
+		
+		public ColumnMapping(String columnname, String sqlexpression, String hanadatatype) {
+			this.alias = columnname;
+			this.sql = sqlexpression;
+			this.hanadatatype = hanadatatype;
+		}
+		public String getAlias() {
+			return alias;
+		}
+		
+		public void setAlias(String alias) {
+			this.alias = alias;
+		}
+		
+		public String getSql() {
+			return sql;
+		}
+		
+		public void setSql(String sql) {
+			this.sql = sql;
+		}
+
+		public String getHanadatatype() {
+			return hanadatatype;
+		}
+
+		public void setHanadatatype(String hanadatatype) {
+			this.hanadatatype = hanadatatype;
+		}
+
+		@Override
+		public String toString() {
+			return alias;
+		}
+
+	}
+
+	public R addChild(String detailtable, String alias, String parentfieldname) throws ConnectorRuntimeException {
+		if (children == null) {
+			children = new ArrayList<>();
+		}
+		R child = createNewRelationalObject(detailtable, alias);
+		children.add(child);
+		child.setParent(this);
+		child.setParentfieldname(parentfieldname);
+		return child;
+	}
+
+
+	@JsonIgnore
+	protected void setParent(RelationalObject<R> parent) {
+		this.parent = parent;
+	}
+	
+	@JsonIgnore
+	protected RelationalObject<R> getParent() {
+		return parent;
+	}
+	
+	protected RelationalObject<?> getRoot() {
+		if (parent == null) {
+			return this;
+		} else {
+			return parent.getRoot();
+		}
+	}
+
+	public String getMastertable() {
+		return mastertable;
+	}
+
+	public void setMastertable(String mastertable) {
+		this.mastertable = mastertable;
+	}
+
+	public String getAlias() {
+		return alias;
+	}
+
+	public void setAlias(String alias) {
+		this.alias = alias;
+	}
+
+	public List<R> getChildren() {
+		return children;
+	}
+
+	public void setChildren(List<R> children) {
+		this.children = children;
+		if (children != null) {
+			for (R r : children) {
+				r.setParent(this);
+			}
+		}
+	}
+
+	@JsonIgnore
+	public Set<String> getImpactedTables() {
+		Set<String> l = new HashSet<>();
+		collectImpactedTables(l);
+		return l;
+	}
+
+	protected void collectImpactedTables(Set<String> l) {
+		l.add(mastertable);
+		if (children != null) {
+			for (R r : children) {
+				r.collectImpactedTables(l);
+			}
+		}
+	}
+
+	public List<ColumnMapping> getColumnmappings() {
+		return columnmappings;
+	}
+
+	public void setColumnmappings(List<ColumnMapping> columnmappings) {
+		this.columnmappings = columnmappings;
+	}
+
+	public ColumnMapping addMapping(String columnname, String sqlexpression, String hanadatatype) {
+		if (columnmappings == null) {
+			columnmappings = new ArrayList<>();
+		}
+		ColumnMapping m = new ColumnMapping(columnname, sqlexpression, hanadatatype);
+		columnmappings.add(m);
+		return m;
+	}
+
+	public void addPK(int pos, ColumnMapping m) {
+		if (pkcolumns == null) {
+			pkcolumns = new ArrayList<>();
+		}
+		if (pkcolumns.size() < pos) {
+			while (pkcolumns.size() < pos-1) {
+				pkcolumns.add(null);
+			}
+			pkcolumns.add(m.getAlias());
+		} else {
+			pkcolumns.set(pos, m.getAlias());
+		}
+	}
+
+	public List<String> getPKColumns() {
+		return pkcolumns;
+	}
+
+	public void setPKColumns(List<String> pkcolumns) {
+		this.pkcolumns = pkcolumns;
+	}
+
+	protected String getColumnList() {
+		StringBuffer b = new StringBuffer();
+		for (int i = 0; i < getColumnmappings().size(); i++) {
+			String columnname = getColumnmappings().get(i).getAlias();
+			if (i != 0) {
+				b.append(", ");
+			}
+			b.append('"');
+			b.append(columnname);
+			b.append('"');
+		}
+		return b.toString();
+	}
+	
+	protected String getPKList() {
+		StringBuffer b = new StringBuffer();
+		for (int i = 0; i < getPKColumns().size(); i++) {
+			String columnname = getPKColumns().get(i);
+			if (i != 0) {
+				b.append(", ");
+			}
+			b.append('"');
+			b.append(columnname);
+			b.append('"');
+		}
+		return b.toString();
+	}
+
+	public Set<String> listAllTables() {
+		Set<String> ret = new HashSet<>();
+		ret.add(mastertable);
+		if (children != null) {
+			for (R r : children) {
+				ret.addAll(r.listAllTables());
+			}
+		}
+		return ret;
+	}
+
+	@Override
+	public int hashCode() {
+		return mastertable.hashCode();
+	}
+
+	@Override
+	public boolean equals(Object obj) {
+		if (this == obj)
+			return true;
+		if (obj == null)
+			return false;
+		if (getClass() != obj.getClass())
+			return false;
+		return mastertable.equals(((RelationalObject<?>) obj).getMastertable());
+	}
+
+	public void write(File directory, String name) throws PropertiesException {
+		if (!directory.exists()) {
+			// throw new PropertiesException("Directory for the Relational Object Definition files does not exist", "Use the UI or create the file manually", 10005, directory.getAbsolutePath());
+			directory.mkdirs();
+		}
+		if (!directory.isDirectory()) {
+			throw new PropertiesException("Specified location exists but is no directory", null, 10005, directory.getAbsolutePath());
+		} else {
+			File file = new File(directory.getAbsolutePath() + File.separatorChar + IOUtils.encodeFileName(name) + ".json");
+			if (file.exists() && !file.canWrite()) { // Either the file does not exist or it exists and is write-able
+				throw new PropertiesException("Properties file is not write-able", "Check file permissions and users", 10005, file.getAbsolutePath());
+			} else {
+				/*
+				 * When writing the properties to a file, all the extra elements like description etc should not be stored.
+				 * Therefore a simplified version of the property tree needs to be created.
+				 */
+				try {
+					mapper.setSerializationInclusion(Include.NON_NULL);
+					mapper.writeValue(file, this);
+				} catch (IOException e) {
+					throw new PropertiesException("Failed to write the json Relational Object Definition file", e, "check filename", file.getName());
+				}
+				
+			}
+		}
+	}
+	
+	public void read(File directory, String name) throws PropertiesException {
+		if (!directory.exists()) {
+			throw new PropertiesException("Directory for the Relational Object Definition files does not exist", "Use the UI or create the file manually", 10005, directory.getAbsolutePath());
+		} else if (!directory.isDirectory()) {
+			throw new PropertiesException("Specified location exists but is no directory", null, 10005, directory.getAbsolutePath());
+		} else { 
+			File file = new File(directory.getAbsolutePath() + File.separatorChar + IOUtils.encodeFileName(name) + ".json");
+			if (!file.canRead()) {
+				throw new PropertiesException("Properties file is not read-able", "Check file permissions and users", 10005, file.getAbsolutePath());
+			} else {
+				try {
+				    RelationalObject<?> data = mapper.readValue(file, this.getClass());
+				    parseValues(data);
+				} catch (PropertiesException e) {
+					throw e; // to avoid nesting the exception
+				} catch (IOException e) {
+					throw new PropertiesException("Cannot parse the json file with the properties", e, "check filename and format", file.getName());
+				}
+			}
+		}
+	}
+
+	protected void parseValues(RelationalObject<?> data) throws ConnectorRuntimeException {
+		this.mastertable = data.getMastertable();
+		this.columnmappings = data.getColumnmappings();
+		this.pkcolumns = data.getPKColumns();
+		this.alias = data.getAlias();
+		if (data.getChildren() != null) {
+			for (RelationalObject<?> r : data.getChildren()) {
+				R n = this.addChild(r.getMastertable(), r.getAlias(), r.parentfieldname);
+				n.setJoincondition(r.getJoincondition());
+				n.parseValues(r);
+			}
+		}
+	}
+	
+	public void validate() {
+		if (getRoot() == this) {
+			defaultAlias(1);
+		}
+		if (children != null) {
+			for (RelationalObject<?> r : children) {
+				r.validate();
+			}
+		}
+	}
+	
+	public int defaultAlias(int counter) {
+		if (alias == null) {
+			alias = "L" + String.valueOf(counter);
+		}
+		counter++;
+		if (children != null) {
+			for (RelationalObject<?> r : children) {
+				counter = r.defaultAlias(counter);
+			}
+		}
+		return counter;
+	}
+	
+	@Override
+	public String toString() {
+		return mastertable;
+	}
+
+	public String getParentfieldname() {
+		return parentfieldname;
+	}
+
+	public void setParentfieldname(String parentfieldname) {
+		this.parentfieldname = parentfieldname;
+	}
+
+}
