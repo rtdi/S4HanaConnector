@@ -18,6 +18,7 @@
 				<configuration>
 					<source>1.8</source>
 					<target>1.8</target>
+					<fork>true</fork>
 				</configuration>
 			</plugin>
 			<plugin>
@@ -55,6 +56,11 @@
 			<artifactId>junit</artifactId>
 			<version>4.13-beta-3</version>
 			<scope>test</scope>
+		</dependency>
+		<dependency>
+			<groupId>javax.servlet</groupId>
+			<artifactId>javax.servlet-api</artifactId>
+			<version>4.0.1</version>
 		</dependency>
 	</dependencies>
 </project>
