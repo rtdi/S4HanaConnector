@@ -38,13 +38,14 @@ save : function(oEvent) {
 		var xmlhttp = new XMLHttpRequest();
 		xmlhttp.open("POST", "../rest/connections/" + encodeURI(sConnectionname) + "/sourcetables");
 		xmlhttp.setRequestHeader("Content-Type", "application/json");
+		var that = this;
 		xmlhttp.onreadystatechange = function() {
 		    if (xmlhttp.readyState == 4) {
 		    	if (xmlhttp.status == 200) {
-		        	sap.m.MessageToast.show(xmlhttp.responseText);
-		    	} else {
-		    		sap.m.MessageToast.show(xmlhttp.responseText);
-		    	}
+			        that.displaySuccess(JSON.parse(xmlhttp.responseText));
+			    } else {
+			        that.displayError(JSON.parse(xmlhttp.responseText));
+			    }
 		    }
 		}
 		xmlhttp.send(oModelFiltered.getJSON());

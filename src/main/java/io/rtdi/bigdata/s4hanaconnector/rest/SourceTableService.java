@@ -18,6 +18,7 @@ import io.rtdi.bigdata.connector.connectorframework.WebAppController;
 import io.rtdi.bigdata.connector.connectorframework.controller.ConnectionController;
 import io.rtdi.bigdata.connector.connectorframework.controller.ConnectorController;
 import io.rtdi.bigdata.connector.connectorframework.rest.JAXBErrorResponseBuilder;
+import io.rtdi.bigdata.connector.connectorframework.rest.JAXBSuccessResponseBuilder;
 import io.rtdi.bigdata.connector.connectorframework.servlet.ServletSecurityConstants;
 import io.rtdi.bigdata.s4hanaconnector.HanaBusinessObject;
 import io.rtdi.bigdata.s4hanaconnector.S4HanaBrowse;
@@ -66,7 +67,7 @@ public class SourceTableService {
 				HanaBusinessObject entity = new HanaBusinessObject(t.getTablename(), dbuser, dbschema, t.getTablename(), "L1", browser.getConnection());
 				entity.write(browser.getBusinessObjectDirectory(), t.getTablename());
 			}
-			return Response.ok("Saved " + data.size() + " table schemas").build();
+			return JAXBSuccessResponseBuilder.getJAXBResponse("Saved " + data.size() + " table schemas");
 		} catch (Exception e) {
 			return JAXBErrorResponseBuilder.getJAXBResponse(e);
 		}
