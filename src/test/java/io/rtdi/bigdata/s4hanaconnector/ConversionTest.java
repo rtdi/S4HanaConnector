@@ -1,13 +1,11 @@
 package io.rtdi.bigdata.s4hanaconnector;
 
-import static org.junit.Assert.*;
-
 import java.math.BigDecimal;
 import java.nio.ByteBuffer;
 
+import org.apache.avro.Conversions.DecimalConversion;
 import org.apache.avro.LogicalTypes;
 import org.apache.avro.LogicalTypes.Decimal;
-import org.apache.avro.Conversions.DecimalConversion;
 import org.junit.After;
 import org.junit.Before;
 import org.junit.Test;

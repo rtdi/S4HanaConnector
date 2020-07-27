@@ -1,0 +1,62 @@
+                       COMMERCIAL LICENSE
+                          21 June 2020
+
+                            Preamble
+
+  The Commercial License is an addendum to the GPL license - see
+LICENSE in the same folder - superseding certain license
+related aspects.
+It applies to productive environments only, not Test, QA or 
+development systems. For those, the GPL license applies providing
+a free usage license. 
+
+  The main purpose of the commercial license is to bill for the
+usage of the Program on a monthly basis, thus allowing further 
+development.
+The key metric used is the number of messages processed by the
+Program per month.
+
+                           PAY-PER-USE
+
+Programs are billed according to the following table
+
+   <100’000messages/month	  0EUR/month
+ <1’000’000messages/month	 50EUR/month
+<10’000’000messages/month	100EUR/month
+>10’000’000messages/month	200EUR/month
+
+(plus taxes if applicable)
+
+Example 1: In a test environment the Program is evaluated for
+its performance over a long period of time.
+--> The Program is used under the GPL license as it is executed in a
+test environment, not a production system, hence no fees occur.
+
+Example 2: The Program is used to copy productive data, the amount
+of rows copied is 50'000rows per month.
+--> The program is used under this Commercial License but the
+fee is 0EUR according to above table. No contract needs to be signed,
+no invoices will be created. 
+
+Once an order is placed for a defined volume, rtdi.io GmbH (Austria,
+Europe), as the copyright owner, will send invoices on a monthly basis
+until the contract is terminated. The contract can be terminated at 
+any time and ends with the last day of the month the termination
+information was received (CET and business hours apply).
+
+The Program is configured by default to send usage statistics, but
+these numbers are informal only. They can not be used as the
+basis for calculating the usage as they are estimates only and
+optional. (See documentation on how to disable and the
+GDPR - General Data Protection and Privacy - information)  
+
+                 DIFFERENCES TO SOFTWARE LICENSES
+
+Unlike classic software licenses, where license and support contract
+go in tandem, the monthly usage is charged and the Program provided
+as-is. As consequence no support and no warranties are provided. In 
+this regards all clauses of the GPL apply, specifically but not 
+exclusive Section 15 and Section 16.
+In the spirit of Open Source, the Source code is provided to the
+public and thus you.
+

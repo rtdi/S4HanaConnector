@@ -3,6 +3,10 @@ showFooter : function() {
 },
 init : function() {
 	var oModel = new JSONModel();
+	var that = this;
+	oModel.attachRequestFailed(function(oEvent) {
+		that.displayError(JSON.parse(oEvent.getParameter("responseText")));
+	});
 	oModel.setSizeLimit(500000);
 	var sConnectionname = jQuery.sap.getUriParameters().get("connectionname");
 	oModel.loadData("../rest/connections/" + encodeURI(sConnectionname) + "/sourcetables");

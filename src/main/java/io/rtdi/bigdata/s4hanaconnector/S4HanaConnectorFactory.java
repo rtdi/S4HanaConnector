@@ -65,7 +65,7 @@ public class S4HanaConnectorFactory implements IConnectorFactory<S4HanaConnectio
 	}
 
 	@Override
-	public ServiceProperties<?> createServiceProperties(String servicename) throws PropertiesException {
+	public ServiceProperties createServiceProperties(String servicename) throws PropertiesException {
 		return null;
 	}
 

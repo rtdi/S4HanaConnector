@@ -84,13 +84,13 @@ public class HanaBusinessObject {
 
 	public void read(File directory, String name) throws PropertiesException {
 		if (!directory.exists()) {
-			throw new PropertiesException("Directory for the Relational Object Definition files does not exist", "Use the UI or create the file manually", 10005, directory.getAbsolutePath());
+			throw new PropertiesException("Directory for the Relational Object Definition files does not exist", "Use the UI or create the file manually", directory.getAbsolutePath());
 		} else if (!directory.isDirectory()) {
-			throw new PropertiesException("Specified location exists but is no directory", null, 10005, directory.getAbsolutePath());
+			throw new PropertiesException("Specified location exists but is no directory", (String) null, directory.getAbsolutePath());
 		} else { 
 			File file = new File(directory.getAbsolutePath() + File.separatorChar + IOUtils.encodeFileName(name) + ".json");
 			if (!file.canRead()) {
-				throw new PropertiesException("Properties file is not read-able", "Check file permissions and users", 10005, file.getAbsolutePath());
+				throw new PropertiesException("Properties file is not read-able", "Check file permissions and users", file.getAbsolutePath());
 			} else {
 				try {
 					HanaBusinessObject data = mapper.readValue(file, this.getClass());
@@ -110,11 +110,11 @@ public class HanaBusinessObject {
 			directory.mkdirs();
 		}
 		if (!directory.isDirectory()) {
-			throw new PropertiesException("Specified location exists but is no directory", null, 10005, directory.getAbsolutePath());
+			throw new PropertiesException("Specified location exists but is no directory", (String) null, directory.getAbsolutePath());
 		} else {
 			File file = new File(directory.getAbsolutePath() + File.separatorChar + IOUtils.encodeFileName(name) + ".json");
 			if (file.exists() && !file.canWrite()) { // Either the file does not exist or it exists and is write-able
-				throw new PropertiesException("Properties file is not write-able", "Check file permissions and users", 10005, file.getAbsolutePath());
+				throw new PropertiesException("Properties file is not write-able", "Check file permissions and users", file.getAbsolutePath());
 			} else {
 				/*
 				 * When writing the properties to a file, all the extra elements like description etc should not be stored.

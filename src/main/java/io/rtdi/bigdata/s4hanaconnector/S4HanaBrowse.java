@@ -237,4 +237,29 @@ public class S4HanaBrowse extends BrowsingService<S4HanaConnectionProperties> {
 			this.imported = imported;
 		}
 	}
+
+	@Override
+	public void validate() throws IOException {
+		close();
+		open();
+		String sql = "select top 1 t.tabname, c.ddtext from \"" + getConnectionProperties().getSourceSchema() + "\".DD02L t "
+				+ "left outer join \"" + getConnectionProperties().getSourceSchema() + "\".DD02T c on (c.tabname = t.tabname and c.ddlanguage = 'E')"
+				+ "where t.tabclass = 'TRANSP' "
+				+ "order by 1";
+		try (PreparedStatement stmt = conn.prepareStatement(sql);) {
+			ResultSet rs = stmt.executeQuery();
+			if (rs.next()) {
+				return;
+			} else {
+				throw new ConnectorRuntimeException("reading the ABAP data dictionary did work but not return any data", null, 
+						"Execute the sql as Hana user \"" + getConnectionProperties().getUsername() + "\"", sql);
+			}
+		} catch (SQLException e) {
+			throw new ConnectorRuntimeException("Reading all tables of the ABAP schema failed", e, 
+					"Execute the sql as Hana user \"" + getConnectionProperties().getUsername() + "\"", sql);
+		} finally {
+			close();
+		}
+		
+	}
 }
