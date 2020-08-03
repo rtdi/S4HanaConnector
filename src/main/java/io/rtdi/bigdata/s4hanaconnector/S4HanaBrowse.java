@@ -7,10 +7,7 @@ import java.sql.PreparedStatement;
 import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.util.ArrayList;
-import java.util.Collections;
-import java.util.HashMap;
 import java.util.List;
-import java.util.Map;
 
 import org.apache.avro.Schema;
 
@@ -18,20 +15,17 @@ import io.rtdi.bigdata.connector.connectorframework.BrowsingService;
 import io.rtdi.bigdata.connector.connectorframework.controller.ConnectionController;
 import io.rtdi.bigdata.connector.connectorframework.entity.TableEntry;
 import io.rtdi.bigdata.connector.connectorframework.exceptions.ConnectorRuntimeException;
-import io.rtdi.bigdata.connector.connectorframework.rest.entity.BrowsingNode;
 import io.rtdi.bigdata.connector.pipeline.foundation.exceptions.SchemaException;
-import io.rtdi.bigdata.connector.pipeline.foundation.utils.IOUtils;
+import io.rtdi.bigdata.connector.pipeline.foundation.utils.NameEncoder;
 
 public class S4HanaBrowse extends BrowsingService<S4HanaConnectionProperties> {
 	
 	private File bopath;
 	private Connection conn;
-	private List<BrowsingNode> tables;
-	private Map<String, BrowsingNode> nameindex;
 
 	public S4HanaBrowse(ConnectionController controller) throws IOException {
 		super(controller);
-		bopath = new File(controller.getDirectory().getAbsolutePath() + File.separatorChar + "BusinessObjects");
+		bopath = new File(controller.getDirectory(), "BusinessObjects");
 	}
 
 	@Override
@@ -57,8 +51,8 @@ public class S4HanaBrowse extends BrowsingService<S4HanaConnectionProperties> {
 			List<TableEntry> ret = new ArrayList<>(files.length);
 			for (File f : files) {
 				if (f.getName().endsWith(".json") && f.isFile()) {
-					String name = IOUtils.decodeFileName(f.getName());
-					ret.add(new TableEntry(name.substring(0, name.length()-5)));
+					String name = f.getName();
+					ret.add(new TableEntry(name));
 				}
 			}
 			return ret;
@@ -86,7 +80,7 @@ public class S4HanaBrowse extends BrowsingService<S4HanaConnectionProperties> {
 		return bopath;
 	}
 	
-	private void addNodeToIndex(List<BrowsingNode> nodes) {
+	/* private void addNodeToIndex(List<BrowsingNode> nodes) {
 		
 		if (nodes != null) {
 			for (BrowsingNode c : nodes) {
@@ -94,7 +88,7 @@ public class S4HanaBrowse extends BrowsingService<S4HanaConnectionProperties> {
 				addNodeToIndex(c.getChildren());
 			}
 		}
-	}
+	} */
 	
 	public List<TableImport> getHanaTables() throws ConnectorRuntimeException {
 		String sql = "select t.tabname, c.ddtext from \"" + getConnectionProperties().getSourceSchema() + "\".DD02L t "
@@ -115,7 +109,7 @@ public class S4HanaBrowse extends BrowsingService<S4HanaConnectionProperties> {
 		}
 	}
 	
-	public List<BrowsingNode> getHanaTableTree(String parentnodeid) throws ConnectorRuntimeException {
+	/* public List<BrowsingNode> getHanaTableTree(String parentnodeid) throws ConnectorRuntimeException {
 		if ( tables == null) {
 			String sql = "select t.tabname, c.ddtext from \"" + getConnectionProperties().getSourceSchema() + "\".DD02L t "
 					+ "left outer join \"" + getConnectionProperties().getSourceSchema() + "\".DD02T c on (c.tabname = t.tabname and c.ddlanguage = 'E')"
@@ -191,13 +185,13 @@ public class S4HanaBrowse extends BrowsingService<S4HanaConnectionProperties> {
 			}
 		}
 		return ret;
-	}
+	} */
 	
 	public Connection getConnection() {
 		return conn;
 	}
 
-	private double calcdistance(String newname, String oldname) {
+	/* private double calcdistance(String newname, String oldname) {
 		int min = Math.min(newname.length(), oldname.length());
 		int pos = 0;
 		while (pos < min && newname.charAt(pos) == oldname.charAt(pos)) {
@@ -209,10 +203,11 @@ public class S4HanaBrowse extends BrowsingService<S4HanaConnectionProperties> {
 			// int diff = Math.abs(newname.charAt(pos) - oldname.charAt(pos));
 			return 256/(pos+1);
 		}
-	}
+	} */
 	
 	public static class TableImport {
 		private String tablename;
+		private String schemaname;
 		private boolean imported;
 		
 		public TableImport() {
@@ -222,6 +217,7 @@ public class S4HanaBrowse extends BrowsingService<S4HanaConnectionProperties> {
 		public TableImport(String tablename) {
 			super();
 			this.tablename = tablename;
+			this.schemaname = NameEncoder.encodeName(tablename);
 		}
 
 		public String getTablename() {
@@ -235,6 +231,14 @@ public class S4HanaBrowse extends BrowsingService<S4HanaConnectionProperties> {
 		}
 		public void setImported(boolean imported) {
 			this.imported = imported;
+		}
+
+		public String getSchemaname() {
+			return schemaname;
+		}
+
+		public void setSchemaname(String schemaname) {
+			this.schemaname = schemaname;
 		}
 	}
 
@@ -261,5 +265,11 @@ public class S4HanaBrowse extends BrowsingService<S4HanaConnectionProperties> {
 			close();
 		}
 		
+	}
+
+	@Override
+	public void deleteRemoteSchemaOrFail(String remotename) throws IOException {
+		File file = new File(bopath, remotename + ".json");
+		java.nio.file.Files.delete(file.toPath());
 	}
 }

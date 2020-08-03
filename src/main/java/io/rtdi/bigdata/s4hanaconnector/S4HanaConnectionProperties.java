@@ -11,7 +11,7 @@ public class S4HanaConnectionProperties extends ConnectionProperties {
 
 	public S4HanaConnectionProperties(String name) {
 		super(name);
-		properties.addStringProperty(JDBCURL, "JDBC URL", "The JDBC URL to use for conencting to the S/4Hana system", "sap-icon://target-group", "jdbc:sap://localhost:3xx15/yy", true);
+		properties.addStringProperty(JDBCURL, "JDBC URL", "The JDBC URL to use for connecting to the S/4Hana system", "sap-icon://target-group", "jdbc:sap://localhost:3xx15/yy", true);
 		properties.addStringProperty(USERNAME, "Username", "Hana database username", "sap-icon://target-group", null, true);
 		properties.addPasswordProperty(PASSWORD, "Password", "Password", "sap-icon://target-group", null, true);
 		properties.addStringProperty(SOURCESCHEMA, "Source database schema", "Database schema of the source tables", "sap-icon://target-group", null, true);

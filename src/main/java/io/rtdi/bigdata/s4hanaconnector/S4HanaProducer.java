@@ -1,4 +1,4 @@
-package io.rtdi.bigdata.s4hanaconnector;
+package io.rtdi.bigdata.s4hanaconnector; 
 
 import java.io.IOException;
 import java.sql.Connection;
@@ -38,7 +38,14 @@ public class S4HanaProducer extends Producer<S4HanaConnectionProperties, S4HanaP
 	private TopicHandler topic;
 	private String username = null;
 	private String sourcedbschema = null;
-	private Map<String, HanaBusinessObject> tablebuilders = new HashMap<>();
+	/**
+	 * The schema directory contains the BusinessObject for each schema name
+	 */
+	private Map<String, HanaBusinessObject> schemadirectory = new HashMap<>();
+	/**
+	 * The table directory contains the same Business Object as teh schema directory but for the mastertable being changed.
+	 */
+	private Map<String, HanaBusinessObject> tabledirectory = new HashMap<>();
 	private long min_transactionid;
 
 
@@ -112,8 +119,8 @@ public class S4HanaProducer extends Producer<S4HanaConnectionProperties, S4HanaP
 			}
 			List<String> sources = getProducerProperties().getSourceSchemas();
 			if (sources != null) {
-				for (String sourceobject : sources) {
-					HanaBusinessObject obj = tablebuilders.get(sourceobject);
+				for (String sourceschema : sources) {
+					HanaBusinessObject obj = schemadirectory.get(sourceschema);
 					obj.createDeltaObjects();
 				}
 			}
@@ -159,7 +166,7 @@ public class S4HanaProducer extends Producer<S4HanaConnectionProperties, S4HanaP
 	@Override
 	public void initialLoad() throws IOException {
 		logger.debug("Initial load");
-		for (HanaBusinessObject obj : tablebuilders.values()) {
+		for (HanaBusinessObject obj : schemadirectory.values()) {
 			logger.debug("Initial load for table \"{}\"", obj.getMastertable());
 			String sql = obj.getInitialSelect();
 			SchemaHandler schemahandler = getSchema(obj.getMastertable());
@@ -226,10 +233,11 @@ public class S4HanaProducer extends Producer<S4HanaConnectionProperties, S4HanaP
 	}
 
 	@Override
-	protected Schema createSchema(String sourcetablename) throws SchemaException, IOException {
+	protected Schema createSchema(String sourceschema) throws SchemaException, IOException {
 		try (S4HanaBrowse browser = new S4HanaBrowse(getConnectionController());) {
-			HanaBusinessObject obj = HanaBusinessObject.readDefinition(username, sourcedbschema, sourcetablename, conn, browser.getBusinessObjectDirectory());
-			tablebuilders.put(sourcetablename, obj);
+			HanaBusinessObject obj = HanaBusinessObject.readDefinition(username, sourcedbschema, sourceschema, conn, browser.getBusinessObjectDirectory());
+			schemadirectory.put(sourceschema, obj);
+			tabledirectory.put(obj.getMastertable(), obj);
 			return obj.getAvroSchema();
 		}
 	}
@@ -370,7 +378,7 @@ public class S4HanaProducer extends Producer<S4HanaConnectionProperties, S4HanaP
 				try (ResultSet logtablesrs = logtablesstmt.executeQuery();) {
 					while (logtablesrs.next()) {
 						String changetable = logtablesrs.getString(1);
-						impacted.add(tablebuilders.get(changetable));
+						impacted.add(tabledirectory.get(changetable));
 					}
 				}
 				logger.debug("Found changes for tables \"{}\"", impacted.toString());
@@ -378,7 +386,7 @@ public class S4HanaProducer extends Producer<S4HanaConnectionProperties, S4HanaP
 			if (impacted.size() > 0) {
 				beginTransaction(String.valueOf(min_transactionid));
 				for (HanaBusinessObject obj : impacted) {
-					String currenttable = obj.getName();
+					String currentschema = obj.getName();
 					sql = obj.getDeltaSelect();
 					try (PreparedStatement stmt = conn.prepareStatement(sql);) {
 						stmt.setLong(1, min_transactionid);
@@ -394,7 +402,7 @@ public class S4HanaProducer extends Producer<S4HanaConnectionProperties, S4HanaP
 				    			default: 
 				    				rowtype = RowType.UPSERT;
 				    			}
-				    			addRow(topic, null, getSchema(currenttable), r, rowtype, null, getProducerProperties().getName());
+				    			addRow(topic, null, getSchema(currentschema), r, rowtype, null, getProducerProperties().getName());
 							}
 						}
 					}

@@ -6,32 +6,19 @@ import java.sql.DriverManager;
 import java.sql.SQLException;
 
 import io.rtdi.bigdata.connector.connectorframework.BrowsingService;
-import io.rtdi.bigdata.connector.connectorframework.Consumer;
-import io.rtdi.bigdata.connector.connectorframework.IConnectorFactory;
+import io.rtdi.bigdata.connector.connectorframework.ConnectorFactory;
+import io.rtdi.bigdata.connector.connectorframework.IConnectorFactoryProducer;
 import io.rtdi.bigdata.connector.connectorframework.Producer;
-import io.rtdi.bigdata.connector.connectorframework.Service;
 import io.rtdi.bigdata.connector.connectorframework.controller.ConnectionController;
-import io.rtdi.bigdata.connector.connectorframework.controller.ConsumerInstanceController;
 import io.rtdi.bigdata.connector.connectorframework.controller.ProducerInstanceController;
-import io.rtdi.bigdata.connector.connectorframework.controller.ServiceController;
 import io.rtdi.bigdata.connector.connectorframework.exceptions.ConnectorCallerException;
 import io.rtdi.bigdata.connector.pipeline.foundation.exceptions.PropertiesException;
-import io.rtdi.bigdata.connector.properties.ServiceProperties;
 
-public class S4HanaConnectorFactory implements IConnectorFactory<S4HanaConnectionProperties, S4HanaProducerProperties, S4HanaConsumerProperties> {
+public class S4HanaConnectorFactory extends ConnectorFactory<S4HanaConnectionProperties> 
+implements IConnectorFactoryProducer<S4HanaConnectionProperties, S4HanaProducerProperties> {
 
 	public S4HanaConnectorFactory() {
-	}
-
-	@Override
-	public String getConnectorName() {
-		return "S4Connector";
-	}
-
-	@Override
-	public Consumer<S4HanaConnectionProperties, S4HanaConsumerProperties> createConsumer(ConsumerInstanceController instance) throws IOException {
-		// TODO Auto-generated method stub
-		return null;
+		super("S4Connector");
 	}
 
 	@Override
@@ -45,11 +32,6 @@ public class S4HanaConnectorFactory implements IConnectorFactory<S4HanaConnectio
 	}
 
 	@Override
-	public S4HanaConsumerProperties createConsumerProperties(String name) throws PropertiesException {
-		return new S4HanaConsumerProperties(name);
-	}
-
-	@Override
 	public S4HanaProducerProperties createProducerProperties(String name) throws PropertiesException {
 		return new S4HanaProducerProperties(name);
 	}
@@ -57,36 +39,6 @@ public class S4HanaConnectorFactory implements IConnectorFactory<S4HanaConnectio
 	@Override
 	public BrowsingService<S4HanaConnectionProperties> createBrowsingService(ConnectionController controller) throws IOException {
 		return new S4HanaBrowse(controller);
-	}
-
-	@Override
-	public Service createService(ServiceController instance) throws IOException {
-		return null;
-	}
-
-	@Override
-	public ServiceProperties createServiceProperties(String servicename) throws PropertiesException {
-		return null;
-	}
-
-	@Override
-	public boolean supportsConnections() {
-		return true;
-	}
-
-	@Override
-	public boolean supportsServices() {
-		return false;
-	}
-
-	@Override
-	public boolean supportsProducers() {
-		return true;
-	}
-
-	@Override
-	public boolean supportsConsumers() {
-		return true;
 	}
 
 	@Override

@@ -64,8 +64,8 @@ public class SourceTableService {
 			String dbschema = props.getSourceSchema();
 			S4HanaBrowse browser = (S4HanaBrowse) connection.getBrowser();
 			for (TableImport t : data) {
-				HanaBusinessObject entity = new HanaBusinessObject(t.getTablename(), dbuser, dbschema, t.getTablename(), "L1", browser.getConnection());
-				entity.write(browser.getBusinessObjectDirectory(), t.getTablename());
+				HanaBusinessObject entity = new HanaBusinessObject(t.getSchemaname(), dbuser, dbschema, t.getTablename(), "L1", browser.getConnection());
+				entity.write(browser.getBusinessObjectDirectory());
 			}
 			return JAXBSuccessResponseBuilder.getJAXBResponse("Saved " + data.size() + " table schemas");
 		} catch (Exception e) {

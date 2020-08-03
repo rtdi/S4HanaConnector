@@ -42,7 +42,6 @@ import io.rtdi.bigdata.connector.pipeline.foundation.exceptions.SchemaException;
 import io.rtdi.bigdata.connector.pipeline.foundation.recordbuilders.AvroField;
 import io.rtdi.bigdata.connector.pipeline.foundation.recordbuilders.SchemaBuilder;
 import io.rtdi.bigdata.connector.pipeline.foundation.recordbuilders.ValueSchema;
-import io.rtdi.bigdata.connector.pipeline.foundation.utils.IOUtils;
 
 public class HanaBusinessObject {
 	private String mastertable; // e.g. salesorder as L1
@@ -82,13 +81,13 @@ public class HanaBusinessObject {
 		this.name = name;
 	}
 
-	public void read(File directory, String name) throws PropertiesException {
+	public void read(File directory) throws PropertiesException {
 		if (!directory.exists()) {
 			throw new PropertiesException("Directory for the Relational Object Definition files does not exist", "Use the UI or create the file manually", directory.getAbsolutePath());
 		} else if (!directory.isDirectory()) {
 			throw new PropertiesException("Specified location exists but is no directory", (String) null, directory.getAbsolutePath());
 		} else { 
-			File file = new File(directory.getAbsolutePath() + File.separatorChar + IOUtils.encodeFileName(name) + ".json");
+			File file = new File(directory, name + ".json");
 			if (!file.canRead()) {
 				throw new PropertiesException("Properties file is not read-able", "Check file permissions and users", file.getAbsolutePath());
 			} else {
@@ -104,7 +103,7 @@ public class HanaBusinessObject {
 		}
 	}
 
-	public void write(File directory, String name) throws PropertiesException {
+	public void write(File directory) throws PropertiesException {
 		if (!directory.exists()) {
 			// throw new PropertiesException("Directory for the Relational Object Definition files does not exist", "Use the UI or create the file manually", 10005, directory.getAbsolutePath());
 			directory.mkdirs();
@@ -112,7 +111,7 @@ public class HanaBusinessObject {
 		if (!directory.isDirectory()) {
 			throw new PropertiesException("Specified location exists but is no directory", (String) null, directory.getAbsolutePath());
 		} else {
-			File file = new File(directory.getAbsolutePath() + File.separatorChar + IOUtils.encodeFileName(name) + ".json");
+			File file = new File(directory, name + ".json");
 			if (file.exists() && !file.canWrite()) { // Either the file does not exist or it exists and is write-able
 				throw new PropertiesException("Properties file is not write-able", "Check file permissions and users", file.getAbsolutePath());
 			} else {
@@ -312,7 +311,7 @@ public class HanaBusinessObject {
 
 	public static HanaBusinessObject readDefinition(String username, String sourcedbschema, String name, Connection conn, File directory) throws PropertiesException {
 		HanaBusinessObject o = new HanaBusinessObject(username, sourcedbschema, name, conn);
-		o.read(directory, name);
+		o.read(directory);
 		return o;
 	}
 	
@@ -342,7 +341,7 @@ public class HanaBusinessObject {
 	@JsonIgnore
 	public Schema getAvroSchema() throws SchemaException, ConnectorRuntimeException {
 		if (avroschema == null) {
-			ValueSchema v = new ValueSchema(getMastertable(), null, null);
+			ValueSchema v = new ValueSchema(getName(), null, null);
 			createSchema(v);
 			v.build();
 		}

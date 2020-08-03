@@ -4,7 +4,7 @@
 	<modelVersion>4.0.0</modelVersion>
 	<groupId>io.rtdi.bigdata.connector</groupId>
 	<artifactId>s4hanaconnector</artifactId>
-	<version>0.9.7</version>
+	<version>0.9.8</version>
 	<packaging>war</packaging>
 	<properties>
 		<project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
@@ -34,12 +34,12 @@
 		<dependency>
 			<groupId>io.rtdi.bigdata.connector</groupId>
 			<artifactId>webappfoundation</artifactId>
-			<version>0.9.23</version>
+			<version>0.9.24</version>
 		</dependency>
 		<dependency>
 			<groupId>io.rtdi.bigdata.connector</groupId>
 			<artifactId>pipelinekafkatcp</artifactId>
-			<version>0.9.23</version>
+			<version>0.9.24</version>
 		</dependency>
 		<dependency>
 			<groupId>com.sap.cloud.db.jdbc</groupId>
