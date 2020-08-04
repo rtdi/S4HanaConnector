@@ -52,7 +52,7 @@ public class S4HanaBrowse extends BrowsingService<S4HanaConnectionProperties> {
 			for (File f : files) {
 				if (f.getName().endsWith(".json") && f.isFile()) {
 					String name = f.getName();
-					ret.add(new TableEntry(name));
+					ret.add(new TableEntry(name.substring(0, name.length()-5))); // remove the .json ending
 				}
 			}
 			return ret;

@@ -22,7 +22,7 @@
         <t:Column >
             <Label text="Schema name"/>
             <t:template>
-                <Input value="{source>schemaname}" wrapping="false" />
+                <Input value="{source>schemaname}" />
             </t:template>
         </t:Column>
     </t:columns>

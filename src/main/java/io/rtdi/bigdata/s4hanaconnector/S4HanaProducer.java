@@ -169,7 +169,7 @@ public class S4HanaProducer extends Producer<S4HanaConnectionProperties, S4HanaP
 		for (HanaBusinessObject obj : schemadirectory.values()) {
 			logger.debug("Initial load for table \"{}\"", obj.getMastertable());
 			String sql = obj.getInitialSelect();
-			SchemaHandler schemahandler = getSchema(obj.getMastertable());
+			SchemaHandler schemahandler = getSchema(obj.getName());
 			Schema schema = null;
 			try (PreparedStatement stmt = conn.prepareStatement(sql); ) {
 				schema = obj.getAvroSchema();
@@ -320,7 +320,7 @@ public class S4HanaProducer extends Producer<S4HanaConnectionProperties, S4HanaP
 				r.put(avrofieldname, rs.getTimestamp(i));
 				break;
 			case TINYINT:
-				r.put(avrofieldname, rs.getByte(i));
+				r.put(avrofieldname, rs.getInt(i));
 				break;
 			case VARBINARY:
 				r.put(avrofieldname, rs.getBytes(i));
@@ -331,6 +331,9 @@ public class S4HanaProducer extends Producer<S4HanaConnectionProperties, S4HanaP
 			default:
 				throw new ConnectorRuntimeException("The select statement returns a datatype the connector cannot handle", null, 
 						"Please create an issue", rs.getMetaData().getColumnName(i) + ":" + t.getName());
+			}
+			if (rs.wasNull()) {
+				r.put(avrofieldname, null);
 			}
 		}
 		return r;
@@ -378,7 +381,10 @@ public class S4HanaProducer extends Producer<S4HanaConnectionProperties, S4HanaP
 				try (ResultSet logtablesrs = logtablesstmt.executeQuery();) {
 					while (logtablesrs.next()) {
 						String changetable = logtablesrs.getString(1);
-						impacted.add(tabledirectory.get(changetable));
+						HanaBusinessObject bo = tabledirectory.get(changetable);
+						if (bo != null) {
+							impacted.add(bo);
+						}
 					}
 				}
 				logger.debug("Found changes for tables \"{}\"", impacted.toString());
@@ -408,13 +414,12 @@ public class S4HanaProducer extends Producer<S4HanaConnectionProperties, S4HanaP
 					}
 				}
 				commitTransaction();
-				updateDeltaInfo(max_transactionid);
-				conn.commit();
 			}
+			updateDeltaInfo(max_transactionid);
+			conn.commit();
 		} catch (SQLException e) {
 			abortTransaction();
-			throw new ConnectorRuntimeException("Selecting the changes ran into an error", e, 
-					"Any idea?", sql);
+			throw new ConnectorRuntimeException("Selecting the changes ran into an error", e, "Any idea?", sql);
 		} catch (SchemaException e) {
 			abortTransaction();
 			throw new ConnectorRuntimeException("Selecting the changes ran into an error with the schema", e, 

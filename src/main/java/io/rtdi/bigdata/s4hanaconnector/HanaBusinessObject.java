@@ -341,7 +341,7 @@ public class HanaBusinessObject {
 	@JsonIgnore
 	public Schema getAvroSchema() throws SchemaException, ConnectorRuntimeException {
 		if (avroschema == null) {
-			ValueSchema v = new ValueSchema(getName(), null, null);
+			ValueSchema v = new ValueSchema(getName(), null);
 			createSchema(v);
 			v.build();
 		}

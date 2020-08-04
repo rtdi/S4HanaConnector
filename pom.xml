@@ -34,12 +34,12 @@
 		<dependency>
 			<groupId>io.rtdi.bigdata.connector</groupId>
 			<artifactId>webappfoundation</artifactId>
-			<version>0.9.24</version>
+			<version>0.9.25</version>
 		</dependency>
 		<dependency>
 			<groupId>io.rtdi.bigdata.connector</groupId>
 			<artifactId>pipelinekafkatcp</artifactId>
-			<version>0.9.24</version>
+			<version>0.9.25</version>
 		</dependency>
 		<dependency>
 			<groupId>com.sap.cloud.db.jdbc</groupId>
