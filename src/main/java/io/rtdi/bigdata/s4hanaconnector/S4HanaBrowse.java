@@ -48,11 +48,13 @@ public class S4HanaBrowse extends BrowsingService<S4HanaConnectionProperties> {
 	public List<TableEntry> getRemoteSchemaNames() throws IOException {
 		if (bopath.isDirectory()) {
 			File[] files = bopath.listFiles();
-			List<TableEntry> ret = new ArrayList<>(files.length);
-			for (File f : files) {
-				if (f.getName().endsWith(".json") && f.isFile()) {
-					String name = f.getName();
-					ret.add(new TableEntry(name.substring(0, name.length()-5))); // remove the .json ending
+			List<TableEntry> ret = new ArrayList<>();
+			if (files != null) {
+				for (File f : files) {
+					if (f.getName().endsWith(".json") && f.isFile()) {
+						String name = f.getName();
+						ret.add(new TableEntry(name.substring(0, name.length()-5))); // remove the .json ending
+					}
 				}
 			}
 			return ret;

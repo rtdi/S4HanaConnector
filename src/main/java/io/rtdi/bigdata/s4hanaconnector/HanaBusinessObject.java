@@ -259,11 +259,17 @@ public class HanaBusinessObject {
 			stmt.setString(1, sourcedbschema);
 			stmt.setString(2, mastertable);
 			ResultSet rs = stmt.executeQuery();
+			int columncount = 0;
 			while (rs.next()) {
 				ColumnMapping m = addMapping(rs.getString(1), "\"" + alias + "\".\"" + rs.getString(1) + "\"", getHanaDataType(rs.getString(2), rs.getInt(3), rs.getInt(4)));
 				if (rs.getInt(5) != 0) {
 					addPK(rs.getInt(5), m);
 				}
+				columncount++;
+			}
+			if (columncount == 0) {
+				throw new ConnectorRuntimeException("This table does not seem to exist in the Hana database itself - not activated?, not a transparent table?", null, 
+						"Execute the sql as Hana user \"" + username + "\"", sql);
 			}
 		} catch (SQLException e) {
 			throw new ConnectorRuntimeException("Reading the table definition failed", e, 
@@ -532,15 +538,20 @@ public class HanaBusinessObject {
 
 	protected void createSchema(SchemaBuilder valueschema) throws ConnectorRuntimeException {
 		try {
-			for ( ColumnMapping m : getColumnmappings()) {
-				String hanadatatypestring = m.getHanadatatype();
-				String columnname = m.getAlias();
-				AvroField f = valueschema.add(columnname, getDataType(hanadatatypestring), null, true);
-				if (getPKColumns().contains(m.getAlias())) {
-					f.setPrimaryKey();
+			if (getColumnmappings() != null) {
+				for ( ColumnMapping m : getColumnmappings()) {
+					String hanadatatypestring = m.getHanadatatype();
+					String columnname = m.getAlias();
+					AvroField f = valueschema.add(columnname, getDataType(hanadatatypestring), null, true);
+					if (getPKColumns().contains(m.getAlias())) {
+						f.setPrimaryKey();
+					}
 				}
+				avroschema = valueschema.getSchema();
+			} else {
+				throw new ConnectorRuntimeException("The schema definition file does not contain any columns!", null, 
+						"Something was wrong when the schema mapping file got created", this.getName());
 			}
-			avroschema = valueschema.getSchema();
 		} catch (SchemaException e) {
 			throw new ConnectorRuntimeException("The Avro Schema cannot be created due to an internal error", e, 
 					"Please create an issue", valueschema.toString());
