@@ -1,0 +1,51 @@
+name: Release
+
+on: 
+  push:
+    branches:
+      - main
+
+jobs:
+  build:
+    name: Release
+    runs-on: ubuntu-latest
+    steps:
+    - uses: actions/checkout@master
+    - uses: actions/cache@master
+      with:
+        path: ~/.m2/repository
+        key: ${{ runner.os }}-maven-${{ hashFiles('**/pom.xml') }}
+        restore-keys: |
+          ${{ runner.os }}-maven-
+    - name: Set up JDK 12
+      uses: actions/setup-java@master
+      with:
+        java-version: 12
+    - name: Build and test project
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      run: |
+        export MVN_PROJECT_VERSION=$(mvn help:evaluate -Dexpression=project.version -q -DforceStdout)
+        echo "::set-env name=MVN_PROJECT_VERSION::$MVN_PROJECT_VERSION"
+        mvn -DskipTests=true --no-transfer-progress clean package
+        
+    - name: Create Release
+      id: create_release
+      uses: actions/create-release@master
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      with:
+        tag_name: v${{ env.MVN_PROJECT_VERSION }}
+        release_name: Release v${{ env.MVN_PROJECT_VERSION }}
+        draft: false
+        prerelease: false
+    - name: Upload Release Asset
+      id: upload-release-asset 
+      uses: actions/upload-release-asset@master
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      with:
+        upload_url: ${{ steps.create_release.outputs.upload_url }}
+        asset_path: target/s4hanaconnector.war
+        asset_name: s4hanaconnector.war
+        asset_content_type: application/war
