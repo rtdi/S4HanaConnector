@@ -1,5 +1,6 @@
 package io.rtdi.bigdata.s4hanaconnector;
 
+import io.rtdi.bigdata.connector.pipeline.foundation.exceptions.PropertiesException;
 import io.rtdi.bigdata.connector.properties.ConnectionProperties;
 
 public class S4HanaConnectionProperties extends ConnectionProperties {
@@ -31,5 +32,21 @@ public class S4HanaConnectionProperties extends ConnectionProperties {
 	
 	public String getSourceSchema() {
 		return properties.getStringPropertyValue(SOURCESCHEMA);
+	}
+	
+	public void setJDBCURL(String value) throws PropertiesException {
+		properties.setProperty(JDBCURL, value);
+	}
+
+	public void setUsername(String value) throws PropertiesException {
+		properties.setProperty(USERNAME, value);
+	}
+
+	public void setPassword(String value) throws PropertiesException {
+		properties.setProperty(PASSWORD, value);
+	}
+
+	public void setSourceSchema(String value) throws PropertiesException {
+		properties.setProperty(SOURCESCHEMA, value);
 	}
 }
