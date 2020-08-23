@@ -4,10 +4,11 @@
 	<modelVersion>4.0.0</modelVersion>
 	<groupId>io.rtdi.bigdata.connector</groupId>
 	<artifactId>s4hanaconnector</artifactId>
-	<version>0.9.10</version>
+	<version>0.9.12</version>
 	<packaging>war</packaging>
 	<properties>
 		<project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
+		<io.rtdi.bigdata.connector.version>0.9.28</io.rtdi.bigdata.connector.version>
 	</properties>
 	<build>
 		<finalName>${project.artifactId}</finalName>
@@ -34,28 +35,35 @@
 		<dependency>
 			<groupId>io.rtdi.bigdata.connector</groupId>
 			<artifactId>webappfoundation</artifactId>
-			<version>0.9.26</version>
+			<version>${io.rtdi.bigdata.connector.version}</version>
 		</dependency>
 		<dependency>
 			<groupId>io.rtdi.bigdata.connector</groupId>
 			<artifactId>pipelinekafkatcp</artifactId>
-			<version>0.9.26</version>
+			<version>${io.rtdi.bigdata.connector.version}</version>
+		</dependency>
+		<dependency>
+			<groupId>io.rtdi.bigdata.connector</groupId>
+			<artifactId>pipelinetest</artifactId>
+			<version>${io.rtdi.bigdata.connector.version}</version>
+			<scope>test</scope>
 		</dependency>
 		<dependency>
 			<groupId>com.sap.cloud.db.jdbc</groupId>
 			<artifactId>ngdbc</artifactId>
-			<version>2.4.59</version>
+			<version>2.5.50</version>
 		</dependency>
 		<dependency>
 			<groupId>junit</groupId>
 			<artifactId>junit</artifactId>
-			<version>4.13-beta-3</version>
+			<version>4.13</version>
 			<scope>test</scope>
 		</dependency>
 		<dependency>
 			<groupId>javax.servlet</groupId>
 			<artifactId>javax.servlet-api</artifactId>
 			<version>4.0.1</version>
+			<scope>provided</scope>
 		</dependency>
 	</dependencies>
 </project>

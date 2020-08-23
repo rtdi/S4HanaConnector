@@ -35,4 +35,16 @@ public class S4HanaProducerProperties extends ProducerProperties {
 		return properties.getMultiSchemaSelectorValue(PRODUCER_SOURCE_SCHEMAS);
 	}
 	
+	public void setTopicName(String value) throws PropertiesException {
+		properties.setProperty(PRODUCER_TOPICNAME, value);
+	}
+
+	public void setPollInterval(int value) throws PropertiesException {
+		properties.setProperty(PRODUCER_POLLINTERVAL, value);
+	}
+
+	public void setSourceSchemas(List<String> value) throws PropertiesException {
+		properties.setProperty(PRODUCER_SOURCE_SCHEMAS, value);
+	}
+
 }

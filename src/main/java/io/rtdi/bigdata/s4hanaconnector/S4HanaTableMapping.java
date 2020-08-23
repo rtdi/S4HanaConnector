@@ -8,7 +8,9 @@ import java.sql.PreparedStatement;
 import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.util.ArrayList;
+import java.util.HashSet;
 import java.util.List;
+import java.util.Set;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
@@ -19,6 +21,7 @@ import com.fasterxml.jackson.annotation.JsonInclude.Include;
 import com.fasterxml.jackson.databind.ObjectMapper;
 
 import io.rtdi.bigdata.connector.connectorframework.exceptions.ConnectorRuntimeException;
+import io.rtdi.bigdata.connector.pipeline.foundation.SchemaConstants;
 import io.rtdi.bigdata.connector.pipeline.foundation.avrodatatypes.AvroBoolean;
 import io.rtdi.bigdata.connector.pipeline.foundation.avrodatatypes.AvroBytes;
 import io.rtdi.bigdata.connector.pipeline.foundation.avrodatatypes.AvroCLOB;
@@ -42,8 +45,9 @@ import io.rtdi.bigdata.connector.pipeline.foundation.exceptions.SchemaException;
 import io.rtdi.bigdata.connector.pipeline.foundation.recordbuilders.AvroField;
 import io.rtdi.bigdata.connector.pipeline.foundation.recordbuilders.SchemaBuilder;
 import io.rtdi.bigdata.connector.pipeline.foundation.recordbuilders.ValueSchema;
+import io.rtdi.bigdata.connector.pipeline.foundation.utils.FileNameEncoder;
 
-public class HanaBusinessObject {
+public class S4HanaTableMapping {
 	private String mastertable; // e.g. salesorder as L1
 	private String alias;
 	private List<ColumnMapping> columnmappings; // e.g. orderid <- L1.orderid  
@@ -58,11 +62,11 @@ public class HanaBusinessObject {
 	private String deltaselect;
 	private String initialselect;
 
-	public HanaBusinessObject() {
+	public S4HanaTableMapping() {
 		super();
 	}
 
-	public HanaBusinessObject(String name, String username, String sourcedbschema, String mastertable, String alias, Connection conn) throws ConnectorRuntimeException {
+	public S4HanaTableMapping(String name, String username, String sourcedbschema, String mastertable, String alias, Connection conn) throws ConnectorRuntimeException {
 		super();
 		this.mastertable = mastertable;
 		this.alias = alias;
@@ -73,7 +77,7 @@ public class HanaBusinessObject {
 		addColumns();
 	}
 
-	private HanaBusinessObject(String username, String sourcedbschema, String name, Connection conn) throws ConnectorRuntimeException {
+	private S4HanaTableMapping(String username, String sourcedbschema, String name, Connection conn) throws ConnectorRuntimeException {
 		super();
 		this.sourcedbschema = sourcedbschema;
 		this.username = username;
@@ -87,12 +91,12 @@ public class HanaBusinessObject {
 		} else if (!directory.isDirectory()) {
 			throw new PropertiesException("Specified location exists but is no directory", (String) null, directory.getAbsolutePath());
 		} else { 
-			File file = new File(directory, name + ".json");
+			File file = new File(directory, FileNameEncoder.encodeName(name + ".json"));
 			if (!file.canRead()) {
 				throw new PropertiesException("Properties file is not read-able", "Check file permissions and users", file.getAbsolutePath());
 			} else {
 				try {
-					HanaBusinessObject data = mapper.readValue(file, this.getClass());
+					S4HanaTableMapping data = mapper.readValue(file, this.getClass());
 				    parseValues(data);
 				} catch (PropertiesException e) {
 					throw e; // to avoid nesting the exception
@@ -111,7 +115,7 @@ public class HanaBusinessObject {
 		if (!directory.isDirectory()) {
 			throw new PropertiesException("Specified location exists but is no directory", (String) null, directory.getAbsolutePath());
 		} else {
-			File file = new File(directory, name + ".json");
+			File file = new File(directory, FileNameEncoder.encodeName(name + ".json"));
 			if (file.exists() && !file.canWrite()) { // Either the file does not exist or it exists and is write-able
 				throw new PropertiesException("Properties file is not write-able", "Check file permissions and users", file.getAbsolutePath());
 			} else {
@@ -137,86 +141,112 @@ public class HanaBusinessObject {
 			stmt.setString(1, sourcedbschema);
 			stmt.setString(2, getMastertable());
 			ResultSet rs = stmt.executeQuery();
-			String existingtriggers = "";
+			Set<String> existingtriggers = new HashSet<>();
 			while (rs.next()) {
-				existingtriggers += rs.getString(1);
+				existingtriggers.add(rs.getString(1));
 			}
-			if (existingtriggers.length() < 3) {
-				StringBuffer pklist1 = new StringBuffer();
-				StringBuffer pklist2 = new StringBuffer();
-				for (int i = 0; i < getPKColumns().size(); i++) {
-					String pkcolumnname = getPKColumns().get(i);
-					if (pkcolumnname == null) {
-						throw new ConnectorRuntimeException("The table is not using all primary key columns", null, 
-								"Make sure all pk columns are mapped at least", getMastertable() + ": " + getPKColumns().toString());
-					}
-					if (i != 0) {
-						pklist1.append(',');
-						pklist2.append(',');
-					}
-					pklist1.append(":c.\"");
-					pklist1.append(pkcolumnname);
-					pklist1.append('"');
-					pklist2.append("PK");
-					pklist2.append(i+1);
-				}
+			if (existingtriggers.size() < 3) {
 				if (getPKColumns().size() == 0) {
 					throw new ConnectorRuntimeException("This replication technology does only work on tables with primary keys", null, 
 							"Please remove the table specified from the list of tables to be replicated", getMastertable());
 				} else if (getPKColumns().size() > 6) {
 					throw new ConnectorRuntimeException("Currently only tables with up the six primary keys are allowed", null, 
-							"Please create and issue", getMastertable() + ": " + pklist1.toString());
+							"Please create and issue", getMastertable());
 				} else {
+					String sourceidentifier = "\"" + sourcedbschema + "\".\"" + getMastertable() + "\"";
+					StringBuffer pklist1 = new StringBuffer();
+					StringBuffer pklist2 = new StringBuffer();
+					StringBuffer pklist3 = new StringBuffer();
+					StringBuffer pklistdifferent = new StringBuffer();
+					for (int i = 0; i < getPKColumns().size(); i++) {
+						String pkcolumn = getPKColumns().get(i);
+						if (pkcolumn == null) {
+							throw new ConnectorRuntimeException("The table is not using all primary key columns", null, 
+									"Make sure all pk columns are mapped at least", getMastertable() + ": " + getPKColumns().toString());
+						}
+						if (i != 0) {
+							pklist1.append(',');
+							pklist2.append(',');
+							pklist3.append(',');
+							pklistdifferent.append(" OR ");
+						}
+						// :c."MANDT",:c."VBELN"
+						pklist1.append(":c.\"");
+						pklist1.append(pkcolumn);
+						pklist1.append('"');
+						// PK1,PK2
+						pklist2.append("PK");
+						pklist2.append(i+1);
+						// :o."MANDT",:o."VBELN"
+						pklist3.append(":c.\"");
+						pklist3.append(pkcolumn);
+						pklist3.append('"');
+						// :o."MANDT" <> :c."MANDT" OR :o."VBELN" <> :c."VBELN"
+						pklistdifferent.append(":o.\"");
+						pklistdifferent.append(pkcolumn);
+						pklistdifferent.append("\" <> :c.\"");
+						pklistdifferent.append(pkcolumn);
+						pklistdifferent.append('"');
+					}
 					if (!existingtriggers.contains("i")) {
-						sql = "CREATE TRIGGER \"" + getMastertable() + "_t_i\" " + 
-								" AFTER INSERT ON \"" + sourcedbschema + "\".\"" + getMastertable() + "\" " + 
-								" REFERENCING NEW ROW c " + 
-								" FOR EACH ROW " + 
-								" BEGIN " + 
-								"     INSERT INTO \"" + username + "\".PKLOG "
-										+ "(change_ts, schema_name, table_name, change_type, "
-										+ "transactionid, transaction_seq, "
-										+ pklist2.toString() + ") " + 
-								"     VALUES (now(), '" + sourcedbschema + "', '" + getMastertable() + "', 'I', "
-										+ "CURRENT_UPDATE_TRANSACTION(), CURRENT_UPDATE_STATEMENT_SEQUENCE(), "
-										+ pklist1.toString() + " ); " + 
+						sql = "CREATE TRIGGER \"" + getMastertable() + "_t_i\" \r\n" + 
+								" AFTER INSERT ON " + sourceidentifier + " \r\n" + 
+								" REFERENCING NEW ROW c \r\n" + 
+								" FOR EACH ROW \r\n" + 
+								" BEGIN \r\n" + 
+								"     INSERT INTO \"" + username + "\".PKLOG \r\n" +
+								"       (change_ts, schema_name, table_name, change_type, \r\n" +
+								"       transactionid, transaction_seq, \r\n"  +
+								"      " + pklist2.toString() + ") \r\n" + 
+								"     VALUES (now(), '" + sourcedbschema + "', '" + getMastertable() + "', 'I', \r\n" +
+								"       CURRENT_UPDATE_TRANSACTION(), CURRENT_UPDATE_STATEMENT_SEQUENCE(), \r\n" +
+								"       " + pklist1.toString() + " ); \r\n" + 
 								" END"; 
 						try (PreparedStatement stmttr = conn.prepareStatement(sql);) {
 							stmttr.execute();
 						}
 					}
 					if (!existingtriggers.contains("u")) {
-						sql = "CREATE TRIGGER \"" + getMastertable() + "_t_u\" " + 
-								" AFTER UPDATE ON \"" + sourcedbschema + "\".\"" + getMastertable() + "\" " + 
-								" REFERENCING NEW ROW c " + 
-								" FOR EACH ROW " + 
-								" BEGIN " + 
-								"     INSERT INTO \"" + username + "\".PKLOG "
-										+ "(change_ts, schema_name, table_name, change_type, "
-										+ "transactionid, transaction_seq, "
-										+ pklist2.toString() + ") " + 
-								"     VALUES (now(), '" + sourcedbschema + "', '" + getMastertable() + "', 'U', "
-										+ "CURRENT_UPDATE_TRANSACTION(), CURRENT_UPDATE_STATEMENT_SEQUENCE(), "
-										+ pklist1.toString() + " ); " + 
-								" END"; 
+						sql =   "CREATE TRIGGER \"" + getMastertable() + "_t_u\" \r\n" + 
+								" AFTER UPDATE ON " + sourceidentifier + " \r\n" + 
+								" REFERENCING NEW ROW c, OLD ROW o \r\n" + 
+								" FOR EACH ROW \r\n" + 
+								" BEGIN \r\n" + 
+								"     INSERT INTO \"" + username + "\".PKLOG \r\n" +
+								"       (change_ts, schema_name, table_name, change_type, \r\n" +
+								"       transactionid, transaction_seq, \r\n" +
+								"      " + pklist2.toString() + ") \r\n" + 
+								"     VALUES (now(), '" + sourcedbschema + "', '" + getMastertable() + "', 'U', \r\n" +
+								"       CURRENT_UPDATE_TRANSACTION(), CURRENT_UPDATE_STATEMENT_SEQUENCE(), \r\n" +
+								"       " + pklist1.toString() + " ); \r\n" + 
+								"     IF (" + pklistdifferent.toString() + " ) THEN \r\n" + 
+								"       INSERT INTO \"" + username + "\".PKLOG \r\n" +
+								"         (change_ts, schema_name, table_name, change_type, \r\n" +
+								"         transactionid, transaction_seq, \r\n" +
+								"        " + pklist2.toString() + ") \r\n" + 
+								"       VALUES (now(), '" + sourcedbschema + "', '" + getMastertable() + "', 'U', \r\n" +
+								"         CURRENT_UPDATE_TRANSACTION(), CURRENT_UPDATE_STATEMENT_SEQUENCE(), \r\n" +
+								"         " + pklist3.toString() + " ); \r\n" + 
+								"     END IF; \r\n" +
+								"END"; 
 						try (PreparedStatement stmttr = conn.prepareStatement(sql);) {
 							stmttr.execute();
 						}
 					}
 					if (!existingtriggers.contains("d")) {
-						sql = "CREATE TRIGGER \"" + getMastertable() + "_t_d\" " + 
-								" BEFORE DELETE ON \"" + sourcedbschema + "\".\"" + getMastertable() + "\" " + 
-								" REFERENCING OLD ROW c " + 
-								" FOR EACH ROW " + 
-								" BEGIN " + 
-								"     INSERT INTO \"" + username + "\".PKLOG "
-										+ "(change_ts, schema_name, table_name, change_type, "
-										+ "transactionid, transaction_seq, "
-										+ pklist2.toString() + ") " + 
-								"     VALUES (now(), '" + sourcedbschema + "', '" + getMastertable() + "', 'D', "
-										+ "CURRENT_UPDATE_TRANSACTION(), CURRENT_UPDATE_STATEMENT_SEQUENCE(), "
-										+ pklist1.toString() + " ); " + 
-								" END"; 
+						sql =   "CREATE TRIGGER \"" + getMastertable() + "_t_d\" \r\n" + 
+								" BEFORE DELETE ON " + sourceidentifier + " \r\n" + 
+								" REFERENCING OLD ROW c \r\n" + 
+								" FOR EACH ROW \r\n" + 
+								" BEGIN \r\n" + 
+								"     INSERT INTO \"" + username + "\".PKLOG \r\n" +
+								"      (change_ts, schema_name, table_name, change_type, \r\n" +
+								"      transactionid, transaction_seq, \r\n" +
+								"      " + pklist2.toString() + ") \r\n" + 
+								"     VALUES (now(), '" + sourcedbschema + "', '" + getMastertable() + "', 'D', \r\n" +
+								"       CURRENT_UPDATE_TRANSACTION(), CURRENT_UPDATE_STATEMENT_SEQUENCE(), \r\n" +
+								"       " + pklist1.toString() + " ); \r\n" + 
+								"END"; 
 						try (PreparedStatement stmttr = conn.prepareStatement(sql);) {
 							stmttr.execute();
 						}
@@ -230,7 +260,7 @@ public class HanaBusinessObject {
 		}
 	}
 
-	protected void parseValues(HanaBusinessObject data) throws ConnectorRuntimeException {
+	protected void parseValues(S4HanaTableMapping data) throws ConnectorRuntimeException {
 		this.mastertable = data.getMastertable();
 		this.columnmappings = data.getColumnmappings();
 		this.pkcolumns = data.getPKColumns();
@@ -250,10 +280,10 @@ public class HanaBusinessObject {
 	}
 
 	public void addColumns() throws ConnectorRuntimeException {
-		String sql = "select c.column_name, c.data_type_name, c.length, c.scale, p.position " + 
-				"from table_columns c left outer join constraints p " + 
-				"	on (p.is_primary_key = 'TRUE' and p.schema_name = c.schema_name and p.table_name = c.table_name and p.column_name = c.column_name) " + 
-				"where c.schema_name = ? and c.table_name = ? " + 
+		String sql = "select c.column_name, c.data_type_name, c.length, c.scale, p.position \r\n" + 
+				"from table_columns c left outer join constraints p \r\n" + 
+				"	on (p.is_primary_key = 'TRUE' and p.schema_name = c.schema_name and p.table_name = c.table_name and p.column_name = c.column_name) \r\n" + 
+				"where c.schema_name = ? and c.table_name = ? \r\n" + 
 				"order by c.position";
 		try (PreparedStatement stmt = conn.prepareStatement(sql);) {
 			stmt.setString(1, sourcedbschema);
@@ -270,6 +300,29 @@ public class HanaBusinessObject {
 			if (columncount == 0) {
 				throw new ConnectorRuntimeException("This table does not seem to exist in the Hana database itself - not activated?, not a transparent table?", null, 
 						"Execute the sql as Hana user \"" + username + "\"", sql);
+			}
+		} catch (SQLException e) {
+			throw new ConnectorRuntimeException("Reading the table definition failed", e, 
+					"Execute the sql as Hana user \"" + username + "\"", sql);
+		}
+		if (pkcolumns == null || pkcolumns.size() == 0) {
+			buildPKviaDDIC();
+		}
+	}
+
+	/**
+	 * Some SAP table do have a PK defined in ABAP but not enforced via a primary key constraint in the database, ACDOCA is a common example.
+	 * Therefore, if no PK is found in the database, read it from DD03L.
+	 * @throws ConnectorRuntimeException
+	 */
+	private void buildPKviaDDIC() throws ConnectorRuntimeException {
+		String sql = "select fieldname from \"" + sourcedbschema + "\".DD03L where keyflag = 'X' and as4local = 'A' and tabname = ? order by position;";
+		try (PreparedStatement stmt = conn.prepareStatement(sql);) {
+			stmt.setString(1, mastertable);
+			ResultSet rs = stmt.executeQuery();
+			pkcolumns = new ArrayList<>();
+			while (rs.next()) {
+				pkcolumns.add(rs.getString(1));
 			}
 		} catch (SQLException e) {
 			throw new ConnectorRuntimeException("Reading the table definition failed", e, 
@@ -315,8 +368,8 @@ public class HanaBusinessObject {
 		return m;
 	}
 
-	public static HanaBusinessObject readDefinition(String username, String sourcedbschema, String name, Connection conn, File directory) throws PropertiesException {
-		HanaBusinessObject o = new HanaBusinessObject(username, sourcedbschema, name, conn);
+	public static S4HanaTableMapping readDefinition(String username, String sourcedbschema, String name, Connection conn, File directory) throws PropertiesException {
+		S4HanaTableMapping o = new S4HanaTableMapping(username, sourcedbschema, name, conn);
 		o.read(directory);
 		return o;
 	}
@@ -404,7 +457,9 @@ public class HanaBusinessObject {
 		select.append("select ");
 		select.append("case when d.\"");
 		select.append(getPKColumns().get(0));
-		select.append("\" is null then 'D' else 'A' end as _change_type, l._transactionid as _transactionid,\r\n");
+		select.append("\" is null then 'D' else 'A' end as _change_type, \r\n");
+		select.append("l._transactionid as _transactionid,\r\n");
+		select.append("d.\"$rowid$\" as \"").append(SchemaConstants.SCHEMA_COLUMN_SOURCE_ROWID).append("\", \r\n");
 		select.append(createProjectionDelta(this, true));
 		select.append("\r\nfrom (select max(_transactionid) as _transactionid, ");
 		select.append(getPKList());
@@ -427,7 +482,9 @@ public class HanaBusinessObject {
 
 	private StringBuffer createSelectInitial() {
 		StringBuffer select = new StringBuffer();
-		select.append("select 'I' as _change_type, null as _transactionid, ");
+		select.append("select 'I' as _change_type, \r\n");
+		select.append("null as _transactionid, \r\n");
+		select.append("d.\"$rowid$\" as \"").append(SchemaConstants.SCHEMA_COLUMN_SOURCE_ROWID).append("\", \r\n");
 		select.append(createProjectionInitial(this));
 		select.append("\r\n from \"");
 		select.append(sourcedbschema);
@@ -471,7 +528,7 @@ public class HanaBusinessObject {
 		}
 	}
 
-	private static StringBuffer createRootJoinCondition(HanaBusinessObject r) {
+	private static StringBuffer createRootJoinCondition(S4HanaTableMapping r) {
 		StringBuffer conditions = new StringBuffer();
 		for (int i = 0; i < r.getPKColumns().size(); i++) {
 			String columnname = r.getPKColumns().get(i);
@@ -487,7 +544,7 @@ public class HanaBusinessObject {
 		return conditions;
 	}
 
-	private static StringBuffer createProjectionDelta(HanaBusinessObject r, boolean usedriver) {
+	private static StringBuffer createProjectionDelta(S4HanaTableMapping r, boolean usedriver) {
 		StringBuffer b = new StringBuffer();
 		for (int i = 0; i < r.getColumnmappings().size(); i++) {
 			String columnname = r.getColumnmappings().get(i).getAlias();
@@ -506,7 +563,7 @@ public class HanaBusinessObject {
 		return b;
 	}
 
-	private static StringBuffer createProjectionInitial(HanaBusinessObject r) {
+	private static StringBuffer createProjectionInitial(S4HanaTableMapping r) {
 		StringBuffer b = new StringBuffer();
 		for (int i = 0; i < r.getColumnmappings().size(); i++) {
 			String columnname = r.getColumnmappings().get(i).getAlias();

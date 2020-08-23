@@ -20,7 +20,7 @@ import io.rtdi.bigdata.connector.connectorframework.controller.ConnectorControll
 import io.rtdi.bigdata.connector.connectorframework.rest.JAXBErrorResponseBuilder;
 import io.rtdi.bigdata.connector.connectorframework.rest.JAXBSuccessResponseBuilder;
 import io.rtdi.bigdata.connector.connectorframework.servlet.ServletSecurityConstants;
-import io.rtdi.bigdata.s4hanaconnector.HanaBusinessObject;
+import io.rtdi.bigdata.s4hanaconnector.S4HanaTableMapping;
 import io.rtdi.bigdata.s4hanaconnector.S4HanaBrowse;
 import io.rtdi.bigdata.s4hanaconnector.S4HanaBrowse.TableImport;
 import io.rtdi.bigdata.s4hanaconnector.S4HanaConnectionProperties;
@@ -64,7 +64,7 @@ public class SourceTableService {
 			String dbschema = props.getSourceSchema();
 			S4HanaBrowse browser = (S4HanaBrowse) connection.getBrowser();
 			for (TableImport t : data) {
-				HanaBusinessObject entity = new HanaBusinessObject(t.getSchemaname(), dbuser, dbschema, t.getTablename(), "L1", browser.getConnection());
+				S4HanaTableMapping entity = new S4HanaTableMapping(t.getSchemaname(), dbuser, dbschema, t.getTablename(), "L1", browser.getConnection());
 				entity.write(browser.getBusinessObjectDirectory());
 			}
 			return JAXBSuccessResponseBuilder.getJAXBResponse("Saved " + data.size() + " table schemas");

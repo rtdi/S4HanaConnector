@@ -57,7 +57,9 @@ implements IConnectorFactoryProducer<S4HanaConnectionProperties, S4HanaProducerP
 	static Connection getDatabaseConnection(String jdbcurl, String user, String passwd) throws SQLException {
         try {
             Class.forName("com.sap.db.jdbc.Driver");
-            return DriverManager.getConnection(jdbcurl, user, passwd);
+            Connection conn = DriverManager.getConnection(jdbcurl, user, passwd);
+            conn.setAutoCommit(false);
+            return conn;
         } catch (ClassNotFoundException e) {
             throw new SQLException("No Hana JDBC driver library found");
         }
