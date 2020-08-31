@@ -235,7 +235,7 @@ public class S4HanaTableMapping {
 					}
 					if (!existingtriggers.contains("d")) {
 						sql =   "CREATE TRIGGER \"" + getMastertable() + "_t_d\" \r\n" + 
-								" BEFORE DELETE ON " + sourceidentifier + " \r\n" + 
+								" AFTER DELETE ON " + sourceidentifier + " \r\n" + 
 								" REFERENCING OLD ROW c \r\n" + 
 								" FOR EACH ROW \r\n" + 
 								" BEGIN \r\n" + 
