@@ -111,16 +111,33 @@ public class S4HanaProducer extends Producer<S4HanaConnectionProperties, S4HanaP
 				}
 				logger.debug("Created the PKLOG table: {}", sql);
 			}
-			/* if (!HanaBusinessObject.checktable("DELTAINFO", conn)) {
-				sql = "create column table DELTAINFO ("
-						+ "DELTA_TS timestamp, "
-						+ "PRODUCERNAME nvarchar(256), "
-						+ "TRANSACTIONID bigint )";
+			if (S4HanaTableMapping.checktable("DELTAINFO", conn)) {
+				/* 
+				 * This is needed for migration only. Prior to 2020-08 the change information was stored in the source,
+				 * now it is in the transaction topic of Kafka.
+				 */
+				sql = "select top 1 delta_ts, transactionid from DELTAINFO where producername = ? order by delta_ts desc";
 				try (PreparedStatement stmt = conn.prepareStatement(sql);) {
+					stmt.setString(1, getProducerProperties().getName());
+					try (ResultSet rs = stmt.executeQuery();) {
+						if (rs.next()) {
+							List<String> tables = getProducerProperties().getSourceSchemas();
+							String transaction = rs.getString(2);
+							for (String t : tables) {
+								this.beginInitialLoadTransaction(transaction, t, 0);
+								this.commitInitialLoadTransaction(0);
+								logger.debug("Migrated the starting points of table {} from the DELTAINFO table into Kafka", t);
+							}
+						}
+					}
+				}
+				sql = "delete from DELTAINFO where producername = ?";
+				try (PreparedStatement stmt = conn.prepareStatement(sql);) {
+					stmt.setString(1, getProducerProperties().getName());
 					stmt.execute();
 				}
-				logger.debug("Created the DELTAINFO table: {}", sql);
-			} */
+				conn.commit();
+			}
 			List<String> sources = getProducerProperties().getSourceSchemas();
 			if (sources != null) {
 				for (String sourceschema : sources) {
