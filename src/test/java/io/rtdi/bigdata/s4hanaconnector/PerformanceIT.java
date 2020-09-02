@@ -63,7 +63,13 @@ public class PerformanceIT {
 		sqlcommands.dropTable("S4HANA_SOURCE", "VBAK");
 		sqlcommands.dropTable("S4HANA_CONNECT", "PKLOG");
 		sqlcommands.executeScript("VBAK.sql");
-		S4HanaTableMapping entity = new S4HanaTableMapping(SCHEMAREGISTRYNAME, connprops.getUsername(), connprops.getSourceSchema(), TABLENAME, "L1", browser.getConnection());
+		S4HanaTableMapping entity = new S4HanaTableMapping(
+				SCHEMAREGISTRYNAME,
+				connprops.getUsername(),
+				connprops.getSourceSchema(),
+				TABLENAME,
+				"L1",
+				browser.getConnection());
 		entity.write(browser.getBusinessObjectDirectory());
 		logger.info("setup of environment is completed");
 	}
