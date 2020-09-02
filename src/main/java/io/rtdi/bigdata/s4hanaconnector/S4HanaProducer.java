@@ -52,19 +52,12 @@ public class S4HanaProducer extends Producer<S4HanaConnectionProperties, S4HanaP
 	
 	public S4HanaProducer(ProducerInstanceController instance) throws PropertiesException {
 		super(instance);
-		String sql = "select current_user from dummy";
 		setConnection();
-		try (PreparedStatement stmt = conn.prepareStatement(sql);) {
-			ResultSet rs = stmt.executeQuery();
-			if (rs.next()) {
-				username = rs.getString(1);
-			} else {
-				throw new ConnectorRuntimeException("Selecting the current user from the database returned no records???", null, 
-						"Execute the sql as Hana user \"" + getConnectionProperties().getUsername() + "\"", sql);
-			}
+		try {
+			username = conn.getSchema();
 		} catch (SQLException e) {
-			throw new ConnectorRuntimeException("Selecting the current user from the database failed?!?", e, 
-					"Execute the sql as Hana user \"" + getConnectionProperties().getUsername() + "\"", sql);
+			throw new ConnectorRuntimeException("Getting the current user for the database failed?!?", e, 
+					null, null);
 		}
 		sourcedbschema  = getConnectionProperties().getSourceSchema();
 		logger.debug("Connected user is {} and source schema with the tables is {}", username, sourcedbschema);
