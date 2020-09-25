@@ -274,6 +274,10 @@ public class S4HanaTableMapping {
 	public String getAlias() {
 		return alias;
 	}
+	
+	private String getAliasIdentifier() {
+		return "\"" + alias + "\"";
+	}
 
 	public void setAlias(String alias) {
 		this.alias = alias;
@@ -455,11 +459,11 @@ public class S4HanaTableMapping {
 		StringBuffer conditions = createRootJoinCondition(this);
 		StringBuffer select = new StringBuffer();
 		select.append("select ");
-		select.append("case when d.\"");
+		select.append("case when ").append(getAliasIdentifier()).append(".\"");
 		select.append(getPKColumns().get(0));
 		select.append("\" is null then 'D' else 'A' end as _change_type, \r\n");
 		select.append("l._transactionid as _transactionid,\r\n");
-		select.append("d.\"$rowid$\" as \"").append(SchemaConstants.SCHEMA_COLUMN_SOURCE_ROWID).append("\", \r\n");
+		select.append(getAliasIdentifier()).append(".\"$rowid$\" as \"").append(SchemaConstants.SCHEMA_COLUMN_SOURCE_ROWID).append("\", \r\n");
 		select.append(createProjectionDelta(this, true));
 		select.append("\r\nfrom (select max(_transactionid) as _transactionid, ");
 		select.append(getPKList());
@@ -473,7 +477,7 @@ public class S4HanaTableMapping {
 		select.append(sourcedbschema);
 		select.append("\".\"");
 		select.append(getMastertable());
-		select.append("\" d \r\n");
+		select.append("\" as ").append(getAliasIdentifier()).append("\r\n");
 		select.append("on (");
 		select.append(conditions);
 		select.append(");\r\n");
@@ -484,13 +488,13 @@ public class S4HanaTableMapping {
 		StringBuffer select = new StringBuffer();
 		select.append("select 'I' as _change_type, \r\n");
 		select.append("null as _transactionid, \r\n");
-		select.append("d.\"$rowid$\" as \"").append(SchemaConstants.SCHEMA_COLUMN_SOURCE_ROWID).append("\", \r\n");
+		select.append(getAliasIdentifier()).append(".\"$rowid$\" as \"").append(SchemaConstants.SCHEMA_COLUMN_SOURCE_ROWID).append("\", \r\n");
 		select.append(createProjectionInitial(this));
 		select.append("\r\n from \"");
 		select.append(sourcedbschema);
 		select.append("\".\"");
 		select.append(getMastertable());
-		select.append("\" d");
+		select.append("\" as ").append(getAliasIdentifier());
 		return select;
 	}
 
@@ -537,7 +541,7 @@ public class S4HanaTableMapping {
 			}
 			conditions.append("l.\"");
 			conditions.append(columnname);
-			conditions.append("\" = d.\"");
+			conditions.append("\" = ").append(r.getAliasIdentifier()).append(".\"");
 			conditions.append(columnname);
 			conditions.append("\"");
 		}
@@ -547,18 +551,22 @@ public class S4HanaTableMapping {
 	private static StringBuffer createProjectionDelta(S4HanaTableMapping r, boolean usedriver) {
 		StringBuffer b = new StringBuffer();
 		for (int i = 0; i < r.getColumnmappings().size(); i++) {
-			String columnname = r.getColumnmappings().get(i).getAlias();
+			ColumnMapping column = r.getColumnmappings().get(i);
 			if (i != 0) {
 				b.append(", ");
 			}
-			if (usedriver && r.getPKColumns().contains(columnname)) {
-				b.append("l");
+			if (usedriver && r.getPKColumns().contains(column.getTableColumnName())) {
+				b.append("l.");
+				b.append(column.getTableColumnName());
+				b.append(" as \"");
+				b.append(column.getAlias());
+				b.append("\"");
 			} else {
-				b.append("d");
+				b.append(column.getSql());
+				b.append(" as \"");
+				b.append(column.getAlias());
+				b.append("\"");
 			}
-			b.append(".\"");
-			b.append(columnname);
-			b.append('"');
 		}
 		return b;
 	}
@@ -566,13 +574,14 @@ public class S4HanaTableMapping {
 	private static StringBuffer createProjectionInitial(S4HanaTableMapping r) {
 		StringBuffer b = new StringBuffer();
 		for (int i = 0; i < r.getColumnmappings().size(); i++) {
-			String columnname = r.getColumnmappings().get(i).getAlias();
+			ColumnMapping column = r.getColumnmappings().get(i);
 			if (i != 0) {
 				b.append(", ");
 			}
+			b.append(column.getSql());
+			b.append(" as \"");
+			b.append(column.getAlias());
 			b.append("\"");
-			b.append(columnname);
-			b.append('"');
 		}
 		return b;
 	}
@@ -703,14 +712,24 @@ public class S4HanaTableMapping {
 		private String alias;
 		private String sql;
 		private String hanadatatype;
+		private String tablecolumnname;
 
 		public ColumnMapping() {
 		}
 		
-		public ColumnMapping(String columnname, String sqlexpression, String hanadatatype) {
-			this.alias = columnname;
+		public ColumnMapping(String alias, String sqlexpression, String hanadatatype) {
+			this.alias = alias;
 			this.sql = sqlexpression;
 			this.hanadatatype = hanadatatype;
+			String[] comp = sqlexpression.split("\\.");
+			if (comp.length == 2) {
+				tablecolumnname = comp[1];
+			} else {
+				tablecolumnname = comp[0];
+			}
+			if (tablecolumnname.charAt(0) == '"') {
+				tablecolumnname = tablecolumnname.substring(1, tablecolumnname.length()-2);
+			}
 		}
 		public String getAlias() {
 			return alias;
@@ -740,6 +759,11 @@ public class S4HanaTableMapping {
 		public String toString() {
 			return alias;
 		}
+
+		protected String getTableColumnName() {
+			return tablecolumnname;
+		}
+
 
 	}
 
