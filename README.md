@@ -77,7 +77,7 @@ For example a producer might capture all Material Management related data and pr
 
 ### Data content
 
-The data in Kafka is a 1:1 copy if the ABPA table structure plus some extra metadata information about the record, e.g. the Hana transaction id.
+The data in Kafka is a 1:1 copy if the ABAP table structure plus some extra metadata information about the record, e.g. the Hana transaction id.
 
 
 ## Licensing

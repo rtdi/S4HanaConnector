@@ -609,7 +609,7 @@ public class S4HanaTableMapping {
 					String hanadatatypestring = m.getHanadatatype();
 					String columnname = m.getAlias();
 					AvroField f = valueschema.add(columnname, getDataType(hanadatatypestring), null, true);
-					if (getPKColumns().contains(m.getAlias())) {
+					if (getPKColumns().contains(m.getTableColumnName())) {
 						f.setPrimaryKey();
 					}
 				}
@@ -719,17 +719,8 @@ public class S4HanaTableMapping {
 		
 		public ColumnMapping(String alias, String sqlexpression, String hanadatatype) {
 			this.alias = alias;
-			this.sql = sqlexpression;
 			this.hanadatatype = hanadatatype;
-			String[] comp = sqlexpression.split("\\.");
-			if (comp.length == 2) {
-				tablecolumnname = comp[1];
-			} else {
-				tablecolumnname = comp[0];
-			}
-			if (tablecolumnname.charAt(0) == '"') {
-				tablecolumnname = tablecolumnname.substring(1, tablecolumnname.length()-2);
-			}
+			setSql(sqlexpression);
 		}
 		public String getAlias() {
 			return alias;
@@ -745,6 +736,15 @@ public class S4HanaTableMapping {
 		
 		public void setSql(String sql) {
 			this.sql = sql;
+			String[] comp = sql.split("\\.");
+			if (comp.length == 2) {
+				tablecolumnname = comp[1];
+			} else {
+				tablecolumnname = comp[0];
+			}
+			if (tablecolumnname.charAt(0) == '"') {
+				tablecolumnname = tablecolumnname.substring(1, tablecolumnname.length()-1);
+			}
 		}
 
 		public String getHanadatatype() {
