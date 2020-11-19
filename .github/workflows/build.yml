@@ -10,15 +10,15 @@ jobs:
     name: Test build
     runs-on: ubuntu-latest
     steps:
-    - uses: actions/checkout@master
-    - uses: actions/cache@master
+    - uses: actions/checkout@main
+    - uses: actions/cache@main
       with:
         path: ~/.m2/repository
         key: ${{ runner.os }}-maven-${{ hashFiles('**/pom.xml') }}
         restore-keys: |
           ${{ runner.os }}-maven-
     - name: Set up JDK 12
-      uses: actions/setup-java@master
+      uses: actions/setup-java@main
       with:
         java-version: 12
     - name: Build and test project
@@ -26,6 +26,5 @@ jobs:
         GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
       run: |
         export MVN_PROJECT_VERSION=$(mvn help:evaluate -Dexpression=project.version -q -DforceStdout)
-        echo "::set-env name=MVN_PROJECT_VERSION::$MVN_PROJECT_VERSION"
+        echo "name=MVN_PROJECT_VERSION::$MVN_PROJECT_VERSION" >> $GITHUB_ENV
         mvn -DskipTests=true --no-transfer-progress clean package
-
