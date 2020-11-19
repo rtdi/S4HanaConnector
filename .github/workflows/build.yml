@@ -25,6 +25,4 @@ jobs:
       env:
         GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
       run: |
-        export MVN_PROJECT_VERSION=$(mvn help:evaluate -Dexpression=project.version -q -DforceStdout)
-        echo "name=MVN_PROJECT_VERSION::$MVN_PROJECT_VERSION" >> $GITHUB_ENV
         mvn -DskipTests=true --no-transfer-progress clean package
