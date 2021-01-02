@@ -6,6 +6,7 @@ import java.sql.JDBCType;
 import java.sql.PreparedStatement;
 import java.sql.ResultSet;
 import java.sql.SQLException;
+import java.sql.Timestamp;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.HashSet;
@@ -23,6 +24,7 @@ import io.rtdi.bigdata.connector.pipeline.foundation.TopicHandler;
 import io.rtdi.bigdata.connector.pipeline.foundation.TopicName;
 import io.rtdi.bigdata.connector.pipeline.foundation.avro.JexlGenericData.JexlRecord;
 import io.rtdi.bigdata.connector.pipeline.foundation.enums.RowType;
+import io.rtdi.bigdata.connector.pipeline.foundation.enums.RuleResult;
 import io.rtdi.bigdata.connector.pipeline.foundation.exceptions.PropertiesException;
 import io.rtdi.bigdata.connector.pipeline.foundation.exceptions.SchemaException;
 import io.rtdi.bigdata.connector.pipeline.foundation.utils.AvroNameEncoder;
@@ -103,6 +105,7 @@ public class S4HanaProducer extends Producer<S4HanaConnectionProperties, S4HanaP
 					stmt.execute();
 				}
 				logger.debug("Created the PKLOG table: {}", sql);
+				addOperationLogLine("Created the PKLOG table");
 			}
 			if (S4HanaTableMapping.checktable("DELTAINFO", conn)) {
 				/* 
@@ -118,7 +121,7 @@ public class S4HanaProducer extends Producer<S4HanaConnectionProperties, S4HanaP
 							String transaction = rs.getString(2);
 							for (String t : tables) {
 								this.beginInitialLoadTransaction(transaction, t, 0);
-								this.commitInitialLoadTransaction(0);
+								this.commitInitialLoadTransaction();
 								logger.debug("Migrated the starting points of table {} from the DELTAINFO table into Kafka", t);
 							}
 						}
@@ -161,27 +164,6 @@ public class S4HanaProducer extends Producer<S4HanaConnectionProperties, S4HanaP
 		}
 	}
 
-/*	@Override
-	public String getLastSuccessfulSourceTransaction() throws IOException {
-		String sql = "select transactionid from deltainfo where producername = ? order by delta_ts desc";
-		try (PreparedStatement transactionlimitstmt = conn.prepareStatement(sql);) {
-			transactionlimitstmt.setString(1, getProducerProperties().getName());
-			ResultSet rs = transactionlimitstmt.executeQuery();
-			if (rs.next()) {
-				min_transactionid = rs.getLong(1);
-				logger.debug("Starting point for delta is Hana transaction id \"{}\"", min_transactionid);
-				return String.valueOf(min_transactionid);
-			} else {
-				min_transactionid = Long.MIN_VALUE;
-				logger.debug("This producer never completed the initial loads");
-				return null;
-			}
-		} catch (SQLException e) {
-			throw new ConnectorRuntimeException("Selecting the lower bound transaction limit failed", e, 
-					"Any idea?", sql);
-		}
-	} */
-	
 	@Override
 	public void startProducerCapture() throws IOException {
 	}
@@ -330,15 +312,29 @@ public class S4HanaProducer extends Producer<S4HanaConnectionProperties, S4HanaP
 	
 	private long getMaxTransactionId(long min_transactionid) throws ConnectorRuntimeException {
 		long max_transactionid = 0;
-		String sql = "select least(max_log, min_active) from\r\n" + 
+		String sql = "select least(max_log, min_active), start_time from\r\n" + 
 				"(select ifnull(max(transactionid), 9223372036854775807) max_log from pklog),\r\n" + 
-				"(select ifnull(min(update_transaction_id-1), 9223372036854775807) min_active from m_transactions where update_transaction_id > 0)";
+				"(select\r\n"
+				+ "  ifnull(min(update_transaction_id-1), 9223372036854775807) min_active,\r\n"
+				+ "  min(start_time) start_time\r\n"
+				+ "from m_transactions where update_transaction_id > 0)";
 		try (PreparedStatement transactionlimitstmt = conn.prepareStatement(sql);) {
 			ResultSet rs = transactionlimitstmt.executeQuery();
 			if (rs.next()) {
 				max_transactionid = rs.getLong(1);
 				if (max_transactionid == 9223372036854775807L) {
 					max_transactionid = min_transactionid;
+				}
+				Timestamp mintransactiondate = rs.getTimestamp(2);
+				if (mintransactiondate != null) {
+					long diff = System.currentTimeMillis() - mintransactiondate.getTime();
+					if (diff > 60000) {
+						addOperationLogLine("A Hana transaction is open since " 
+								+ String.valueOf(diff/1000L) + " seconds, using this as upper limit", null, RuleResult.WARN);
+					} else {
+						addOperationLogLine("A Hana transaction is open since " 
+								+ String.valueOf(diff/1000L) + " seconds, using this as upper limit");
+					}
 				}
 			} else {
 				max_transactionid = min_transactionid; // given above sql this cannot happen
@@ -377,7 +373,7 @@ public class S4HanaProducer extends Producer<S4HanaConnectionProperties, S4HanaP
 		long min_transactionid = Long.valueOf(from_transaction);
 		long max_transactionid = getMaxTransactionId(min_transactionid);
 		String sql = null;
-		
+		addOperationLogLine("Begin of iteration from " + String.valueOf(min_transactionid) + " to " + String.valueOf(max_transactionid));
 		if (min_transactionid != max_transactionid) { // If Hana has not processed a single record anywhere, no need to check for data
 			logger.debug("Reading change data from Hana transaction id \"{}\" to transaction id \"{}\"", min_transactionid, max_transactionid);
 			try {
@@ -403,6 +399,7 @@ public class S4HanaProducer extends Producer<S4HanaConnectionProperties, S4HanaP
 					}
 				}
 				if (impacted.size() > 0) {
+					addOperationLogLine("Found relevant change records in PKLOG");
 					logger.debug("Found changes for mappings \"{}\"", impacted.toString());
 					beginDeltaTransaction(String.valueOf(max_transactionid), instance.getInstanceNumber());
 					for (S4HanaTableMapping obj : impacted) {
@@ -431,6 +428,9 @@ public class S4HanaProducer extends Producer<S4HanaConnectionProperties, S4HanaP
 					
 					commitDeltaTransaction();
 					conn.commit();
+					addOperationLogLine("Iteration ended, data sent");
+				} else {
+					addOperationLogLine("Iteration ended, no changes in PKLOG for the producer tables");
 				}
 				logger.debug("Moved min transaction id to \"{}\" as new starting point", max_transactionid);
 				return String.valueOf(max_transactionid);
@@ -443,45 +443,19 @@ public class S4HanaProducer extends Producer<S4HanaConnectionProperties, S4HanaP
 						"Any idea?", null);
 			}
 		} else {
+			addOperationLogLine("Iteration ended");
 			return from_transaction;
 		}
 	}
-
-/*	private void updateDeltaInfo(long max_transactionid) throws ConnectorRuntimeException {
-		String sql = "insert into deltainfo (delta_ts, producername, transactionid) values (now(), ?, ?)";
-		try (PreparedStatement transactionlimitstmt = conn.prepareStatement(sql);) {
-			transactionlimitstmt.setString(1, getProducerProperties().getName());
-			transactionlimitstmt.setLong(2, max_transactionid);
-			transactionlimitstmt.execute();
-			min_transactionid = max_transactionid;
-		} catch (SQLException e) {
-			throw new ConnectorRuntimeException("Inserting the new successful delta interval into the DELTAINFO table failed", e, 
-					"Any idea?", sql);
-		}
-	} */
 
 	/**
 	 * Delete all old data from PKLOG and DELTAINFO
 	 */
 	public void executePeriodicTask() throws ConnectorRuntimeException {
-		// The condition transactionid <> 0 is important as this acts as the indicator for initial loads
-		/* String sql = "delete from deltainfo where delta_ts < add_days(now(), -7) and transactionid <> 0";
-		try (PreparedStatement stmt = conn.prepareStatement(sql);) {
-			stmt.execute();
-			logger.debug("Deleted outdated data from DELTAINFO");
-		} catch (SQLException e) {
-			throw new ConnectorRuntimeException("Deleting outdated data from the DELTAINFO table failed", e, 
-					"Any idea?", sql);
-		} finally {
-			try {
-				conn.commit();
-			} catch (SQLException e) {
-				logger.error("Failed ot commit", e);
-			}
-		} */
 		String sql = "delete from pklog where CHANGE_TS < add_days(now(), -7)";
 		try (PreparedStatement stmt = conn.prepareStatement(sql);) {
-			stmt.execute();
+			int d = stmt.executeUpdate();
+			addOperationLogLine("Deleting " + String.valueOf(d) + "rows from PKLOG which were older than 7 days");
 			logger.debug("Deleted outdated data from PKLOG");
 		} catch (SQLException e) {
 			throw new ConnectorRuntimeException("Deleting outdated data from the PKLOG table failed", e, 
@@ -505,6 +479,7 @@ public class S4HanaProducer extends Producer<S4HanaConnectionProperties, S4HanaP
 
 	@Override
 	public long executeInitialLoad(String schemaname, String transactionid) throws IOException {
+		addOperationLogLine("Initial load for " + schemaname + " started");
 		S4HanaTableMapping obj = schemadirectory.get(schemaname);
 		logger.debug("Initial load for mapping \"{}\" is about to start", schemaname);
 		String sql = obj.getInitialSelect();
@@ -527,7 +502,8 @@ public class S4HanaProducer extends Producer<S4HanaConnectionProperties, S4HanaP
 					rowcount++;
 				}
 			}
-			commitInitialLoadTransaction(rowcount);
+			commitInitialLoadTransaction();
+			addOperationLogLine("Initial load for " + schemaname + "finished, loaded " + String.valueOf(rowcount) + " rows");
 			logger.debug("Initial load for mapping \"{}\" is completed, loaded {} rows", schemaname, rowcount);
 			return rowcount;
 		} catch (SQLException e) {

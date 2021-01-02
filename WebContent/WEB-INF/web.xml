@@ -14,7 +14,7 @@
 		<servlet-name>jersey-servlet</servlet-name>
 		<servlet-class>org.glassfish.jersey.servlet.ServletContainer</servlet-class>
 		<init-param>
-			<param-name>javax.ws.rs.Application</param-name>
+			<param-name>jakarta.ws.rs.Application</param-name>
 			<param-value>io.rtdi.bigdata.s4hanaconnector.JerseyApplicationSettings</param-value>
 		</init-param>
 		<load-on-startup>1</load-on-startup>
