@@ -1,6 +1,6 @@
 package io.rtdi.bigdata.s4hanaconnector.servlet;
 
-import javax.servlet.annotation.WebServlet;
+import jakarta.servlet.annotation.WebServlet;
 
 import io.rtdi.bigdata.connector.connectorframework.servlet.UI5ServletAbstract;
 
