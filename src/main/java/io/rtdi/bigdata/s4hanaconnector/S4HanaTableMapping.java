@@ -556,9 +556,9 @@ public class S4HanaTableMapping {
 				b.append(", ");
 			}
 			if (usedriver && r.getPKColumns().contains(column.getTableColumnName())) {
-				b.append("l.");
+				b.append("l.\"");
 				b.append(column.getTableColumnName());
-				b.append(" as \"");
+				b.append("\" as \"");
 				b.append(column.getAlias());
 				b.append("\"");
 			} else {
