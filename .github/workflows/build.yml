@@ -10,8 +10,8 @@ jobs:
     name: Test build
     runs-on: ubuntu-latest
     steps:
-    - uses: actions/checkout@main
-    - uses: actions/cache@main
+    - uses: actions/checkout@v1
+    - uses: actions/cache@v1
       with:
         path: ~/.m2/repository
         key: ${{ runner.os }}-maven-${{ hashFiles('**/pom.xml') }}

@@ -10,15 +10,15 @@ jobs:
     name: Release
     runs-on: ubuntu-latest
     steps:
-    - uses: actions/checkout@main
-    - uses: actions/cache@main
+    - uses: actions/checkout@v1
+    - uses: actions/cache@v1
       with:
         path: ~/.m2/repository
         key: ${{ runner.os }}-maven-${{ hashFiles('**/pom.xml') }}
         restore-keys: |
           ${{ runner.os }}-maven-
     - name: Set up JDK 12
-      uses: actions/setup-java@main
+      uses: actions/setup-java@v1
       with:
         java-version: 12
     - name: Build and test project
@@ -31,7 +31,7 @@ jobs:
         
     - name: Create Release
       id: create_release
-      uses: actions/create-release@main
+      uses: actions/create-release@v1
       env:
         GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
       with:
