@@ -60,7 +60,7 @@ public class S4HanaTableMapping {
 	private String username;
 	private String name;
 	private String deltaselect;
-	private String initialselect;
+	private StringBuffer initialselectprojection;
 
 	public S4HanaTableMapping() {
 		super();
@@ -415,7 +415,7 @@ public class S4HanaTableMapping {
 		createTrigger();
 		createView();
 		deltaselect = createSelectDelta().toString();
-		initialselect = createSelectInitial().toString();
+		initialselectprojection = createProjectionInitial(this);
 	}
 
 	private void createView() throws ConnectorRuntimeException {
@@ -481,20 +481,6 @@ public class S4HanaTableMapping {
 		select.append("on (");
 		select.append(conditions);
 		select.append(");\r\n");
-		return select;
-	}
-
-	private StringBuffer createSelectInitial() {
-		StringBuffer select = new StringBuffer();
-		select.append("select 'I' as _change_type, \r\n");
-		select.append("null as _transactionid, \r\n");
-		select.append(getAliasIdentifier()).append(".\"$rowid$\" as \"").append(SchemaConstants.SCHEMA_COLUMN_SOURCE_ROWID).append("\", \r\n");
-		select.append(createProjectionInitial(this));
-		select.append("\r\n from \"");
-		select.append(sourcedbschema);
-		select.append("\".\"");
-		select.append(getMastertable());
-		select.append("\" as ").append(getAliasIdentifier());
 		return select;
 	}
 
@@ -763,12 +749,25 @@ public class S4HanaTableMapping {
 		protected String getTableColumnName() {
 			return tablecolumnname;
 		}
-
-
 	}
 
-	public String getInitialSelect() {
-		return initialselect;
+	public String getInitialSelect(Integer partition) {
+		StringBuffer select = new StringBuffer();
+		select.append("select 'I' as _change_type, \r\n");
+		select.append("null as _transactionid, \r\n");
+		select.append(getAliasIdentifier()).append(".\"$rowid$\" as \"").append(SchemaConstants.SCHEMA_COLUMN_SOURCE_ROWID).append("\", \r\n");
+		select.append(initialselectprojection);
+		select.append("\r\n from \"");
+		select.append(sourcedbschema);
+		select.append("\".\"");
+		select.append(getMastertable());
+		select.append("\" ");
+		if (partition != null) {
+			select.append(" partition ");
+			select.append(partition);
+		}
+		select.append(" as ").append(getAliasIdentifier());
+		return select.toString();
 	}
 
 	@Override

@@ -8,11 +8,20 @@ import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.sql.Timestamp;
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.HashMap;
 import java.util.HashSet;
+import java.util.Iterator;
+import java.util.LinkedList;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
+import java.util.concurrent.Callable;
+import java.util.concurrent.ExecutionException;
+import java.util.concurrent.Executors;
+import java.util.concurrent.Future;
+import java.util.concurrent.ThreadPoolExecutor;
+import java.util.concurrent.TimeUnit;
 
 import org.apache.avro.Schema;
 
@@ -25,8 +34,10 @@ import io.rtdi.bigdata.connector.pipeline.foundation.TopicName;
 import io.rtdi.bigdata.connector.pipeline.foundation.avro.JexlGenericData.JexlRecord;
 import io.rtdi.bigdata.connector.pipeline.foundation.enums.RowType;
 import io.rtdi.bigdata.connector.pipeline.foundation.enums.RuleResult;
+import io.rtdi.bigdata.connector.pipeline.foundation.exceptions.PipelineRuntimeException;
 import io.rtdi.bigdata.connector.pipeline.foundation.exceptions.PropertiesException;
 import io.rtdi.bigdata.connector.pipeline.foundation.exceptions.SchemaException;
+import io.rtdi.bigdata.connector.pipeline.foundation.mapping.RecordMapping;
 import io.rtdi.bigdata.connector.pipeline.foundation.utils.AvroNameEncoder;
 
 /**
@@ -104,7 +115,7 @@ public class S4HanaProducer extends Producer<S4HanaConnectionProperties, S4HanaP
 				try (PreparedStatement stmt = conn.prepareStatement(sql);) {
 					stmt.execute();
 				}
-				logger.debug("Created the PKLOG table: {}", sql);
+				logger.info("Created the PKLOG table: {}", sql);
 				addOperationLogLine("Created the PKLOG table");
 			}
 			if (S4HanaTableMapping.checktable("DELTAINFO", conn)) {
@@ -150,7 +161,7 @@ public class S4HanaProducer extends Producer<S4HanaConnectionProperties, S4HanaP
 	@Override
 	public void createTopiclist() throws IOException {
 		TopicName t = TopicName.create(getProducerProperties().getTopicName());
-		logger.debug("Create the topic for the topicname {} if it does not exist yet, actual Kafka topic name (encoded) is {}", t.getName(), t.getEncodedName());
+		logger.info("Create the topic for the topicname {} if it does not exist yet, actual Kafka topic name (encoded) is {}", t.getName(), t.getEncodedName());
 		topic = getPipelineAPI().getTopicOrCreate(t, 1, (short) 1);
 		List<String> sources = getProducerProperties().getSourceSchemas();
 		if (sources != null) {
@@ -158,7 +169,7 @@ public class S4HanaProducer extends Producer<S4HanaConnectionProperties, S4HanaP
 				SchemaHandler handler = getSchemaHandler(sourcetablename);
 				if (handler != null) {
 					addTopicSchema(topic, handler);
-					logger.debug("Attached the schema {} to the topic", handler.getSchemaName().getName());
+					logger.info("Attached the schema {} to the topic", handler.getSchemaName().getName());
 				}
 			}
 		}
@@ -226,10 +237,10 @@ public class S4HanaProducer extends Producer<S4HanaConnectionProperties, S4HanaP
 				r.put(avrofieldname, rs.getBoolean(i));
 				break;
 			case CHAR:
-				r.put(avrofieldname, trim(rs.getString(i)));
+				r.put(avrofieldname, rs.getString(i));
 				break;
 			case CLOB:
-				r.put(avrofieldname, trim(rs.getString(i)));
+				r.put(avrofieldname, rs.getString(i));
 				break;
 			case DATE:
 				r.put(avrofieldname, rs.getDate(i));
@@ -247,22 +258,22 @@ public class S4HanaProducer extends Producer<S4HanaConnectionProperties, S4HanaP
 				r.put(avrofieldname, rs.getInt(i));
 				break;
 			case LONGNVARCHAR:
-				r.put(avrofieldname, trim(rs.getString(i)));
+				r.put(avrofieldname, rs.getString(i));
 				break;
 			case LONGVARBINARY:
 				r.put(avrofieldname, rs.getBytes(i));
 				break;
 			case LONGVARCHAR:
-				r.put(avrofieldname, trim(rs.getString(i)));
+				r.put(avrofieldname, rs.getString(i));
 				break;
 			case NCHAR:
-				r.put(avrofieldname, trim(rs.getString(i)));
+				r.put(avrofieldname, rs.getString(i));
 				break;
 			case NCLOB:
-				r.put(avrofieldname, trim(rs.getString(i)));
+				r.put(avrofieldname, rs.getString(i));
 				break;
 			case NVARCHAR:
-				r.put(avrofieldname, trim(rs.getString(i)));
+				r.put(avrofieldname, rs.getString(i));
 				break;
 			case REAL:
 				r.put(avrofieldname, rs.getFloat(i));
@@ -289,35 +300,38 @@ public class S4HanaProducer extends Producer<S4HanaConnectionProperties, S4HanaP
 				r.put(avrofieldname, rs.getBytes(i));
 				break;
 			case VARCHAR:
-				r.put(avrofieldname, trim(rs.getString(i)));
+				r.put(avrofieldname, rs.getString(i));
 				break;
 			default:
 				throw new ConnectorRuntimeException("The select statement returns a datatype the connector cannot handle", null, 
 						"Please create an issue", rs.getMetaData().getColumnName(i) + ":" + t.getName());
 			}
 			if (rs.wasNull()) {
+				/*
+				 * Above code might have e.g. put a 0L into the record even if it was null really.
+				 * Hence validate it was 0L or a null value
+				 */
 				r.put(avrofieldname, null);
 			}
 		}
 		return r;
 	}
-
-	private String trim(String value) {
-		if (value == null || value.length() == 0) {
-			return null;
-		} else {
-			return value;
-		}
-	}
 	
 	private long getMaxTransactionId(long min_transactionid) throws ConnectorRuntimeException {
 		long max_transactionid = 0;
+		/* 
+		 * In order to read the data in commit order, the data is processed up to the first 
+		 * uncommitted transaction and not further.
+		 * This has one issue, what if a session starts a transaction and it is not committed or
+		 * rolled back for many hours or days? This cannot happen with SAP ABAP transactions.
+		 * Hence the fall back is to consider only in-flight transactions younger than two hours.
+		 */
 		String sql = "select least(max_log, min_active), start_time from\r\n" + 
 				"(select ifnull(max(transactionid), 9223372036854775807) max_log from pklog),\r\n" + 
 				"(select\r\n"
 				+ "  ifnull(min(update_transaction_id-1), 9223372036854775807) min_active,\r\n"
 				+ "  min(start_time) start_time\r\n"
-				+ "from m_transactions where update_transaction_id > 0)";
+				+ "from m_transactions where update_transaction_id > 0 and start_time > add_seconds(now(), -7200))";
 		try (PreparedStatement transactionlimitstmt = conn.prepareStatement(sql);) {
 			ResultSet rs = transactionlimitstmt.executeQuery();
 			if (rs.next()) {
@@ -328,12 +342,21 @@ public class S4HanaProducer extends Producer<S4HanaConnectionProperties, S4HanaP
 				Timestamp mintransactiondate = rs.getTimestamp(2);
 				if (mintransactiondate != null) {
 					long diff = System.currentTimeMillis() - mintransactiondate.getTime();
+					/*
+					 * An open transaction for a few milliseconds is normal. But longer than one minute should 
+					 * start notifying the user. 
+					 */
 					if (diff > 60000) {
 						addOperationLogLine("A Hana transaction is open since " 
-								+ String.valueOf(diff/1000L) + " seconds, using this as upper limit", null, RuleResult.WARN);
-					} else {
+								+ String.valueOf(diff/1000L)
+								+ " seconds, hence there is increased latency in the replication",
+								null, RuleResult.WARN);
+						logger.info("A Hana transaction is open since {} seconds, hence "
+								+ "there is increased latency in the replication", diff/1000L);
+					} else if (diff > 5000) {
 						addOperationLogLine("A Hana transaction is open since " 
-								+ String.valueOf(diff/1000L) + " seconds, using this as upper limit");
+								+ String.valueOf(diff/1000L) + " seconds, hence there is increased "
+										+ "latency in the replication");
 					}
 				}
 			} else {
@@ -456,7 +479,7 @@ public class S4HanaProducer extends Producer<S4HanaConnectionProperties, S4HanaP
 		try (PreparedStatement stmt = conn.prepareStatement(sql);) {
 			int d = stmt.executeUpdate();
 			addOperationLogLine("Deleting " + String.valueOf(d) + "rows from PKLOG which were older than 7 days");
-			logger.debug("Deleted outdated data from PKLOG");
+			logger.info("Deleted outdated data from PKLOG");
 		} catch (SQLException e) {
 			throw new ConnectorRuntimeException("Deleting outdated data from the PKLOG table failed", e, 
 					"Any idea?", sql);
@@ -479,41 +502,145 @@ public class S4HanaProducer extends Producer<S4HanaConnectionProperties, S4HanaP
 
 	@Override
 	public long executeInitialLoad(String schemaname, String transactionid) throws IOException {
+		/*
+		 * The initial load process is to
+		 * a) Get the partition names of the table available in the source
+		 * b) Create a task for each partition or one task for the entire table if it is not partitioned 
+		 * c) Create a worker pool to load up to 10 partitions in parallel. 
+		 *    If one partition fails, stop the initial load. 
+		 */
 		addOperationLogLine("Initial load for " + schemaname + " started");
 		S4HanaTableMapping obj = schemadirectory.get(schemaname);
-		logger.debug("Initial load for mapping \"{}\" is about to start", schemaname);
-		String sql = obj.getInitialSelect();
-		SchemaHandler schemahandler = getSchema(obj.getName());
-		Schema schema = null;
-		try (PreparedStatement stmt = conn.prepareStatement(sql); ) {
-			schema = obj.getAvroSchema();
-			beginInitialLoadTransaction(transactionid, schemaname, instance.getInstanceNumber());
-			long rowcount = 0L;
+		String sql = "select partition from m_cs_partitions where schema_name= ? and table_name = ?";
+		List<InitialLoadTask> tasks = new ArrayList<>();
+		try (PreparedStatement stmt = conn.prepareStatement(sql);) {
+			stmt.setString(1, sourcedbschema);
+			stmt.setString(2, schemaname);
 			try (ResultSet rs = stmt.executeQuery();) {
 				while (rs.next()) {
-					JexlRecord r = convert(rs, schema);
-					addRow(topic,
-							null,
-							schemahandler,
-							r,
-							RowType.INSERT,
-							null,
-							getProducerProperties().getName());
-					rowcount++;
+					InitialLoadTask t = new InitialLoadTask(obj, transactionid, rs.getInt(1));
+					tasks.add(t);
+				}
+			}
+			if (tasks.size() == 0) {
+				InitialLoadTask t = new InitialLoadTask(obj, transactionid, null);
+				tasks.add(t);
+			}
+			beginInitialLoadTransaction(transactionid, schemaname, instance.getInstanceNumber());
+			List<Future<Long>> futures = Collections.synchronizedList(new LinkedList<>());
+			ThreadPoolExecutor executor = (ThreadPoolExecutor) Executors.newWorkStealingPool(10);
+			for (InitialLoadTask t : tasks) {
+				futures.add(executor.submit(t));
+			}
+			executor.shutdown(); // Mark the thread pool so that it does not take additional work
+			long rowcount = 0L;
+			/*
+			 * Every 5 seconds check which partitions have been loaded and if there was an error.
+			 */
+			while (futures.size() > 0) {
+				Iterator<Future<Long>> iter = futures.iterator();
+				while (iter.hasNext()) {
+					Future<Long> f = iter.next();
+					if (f.isDone()) {
+						try {
+							rowcount += f.get();
+							futures.remove(f);
+						} catch (ExecutionException | InterruptedException e) {
+							/*
+							 * If one partition failed, stop all other initial load threads asap
+							 */
+							executor.shutdownNow();
+							abortTransaction();
+							throw new PipelineRuntimeException("One partition failed to initial load, "
+									+ "shutting down the entire initial load", e.getCause(), null);
+						}
+					}
+				}
+				try {
+					Thread.sleep(5000);
+				} catch (InterruptedException e) {
+					executor.shutdownNow();
+					abortTransaction();
+					throw new PipelineRuntimeException("Main thread got interrupted, "
+							+ "shutting down the entire initial load", e.getCause(), null);
 				}
 			}
 			commitInitialLoadTransaction();
 			addOperationLogLine("Initial load for " + schemaname + "finished, loaded " + String.valueOf(rowcount) + " rows");
-			logger.debug("Initial load for mapping \"{}\" is completed, loaded {} rows", schemaname, rowcount);
+			logger.info("Initial load for mapping \"{}\" ... completed, loaded {} rows", schemaname, rowcount);
 			return rowcount;
 		} catch (SQLException e) {
-			abortTransaction();
-			throw new ConnectorRuntimeException("Executing the initial load SQL failed with SQL error", e, 
-					"Execute the sql as Hana user \"" + getConnectionProperties().getUsername() + "\"", sql);
-		} catch (SchemaException e) {
-			abortTransaction();
-			throw new ConnectorRuntimeException("SchemaException thrown when assigning the values", e, 
-					null, schema.toString());
+			throw new PipelineRuntimeException("Failed to read the partition information", e, null);
 		}
+	}
+	
+	public class InitialLoadTask implements Callable<Long> {
+	    private Integer partition;
+		private String transactionid;
+		private S4HanaTableMapping obj;
+
+	    public InitialLoadTask(S4HanaTableMapping obj, String transactionid, Integer partition) {
+	        this.partition = partition;
+	        this.obj = obj;
+	    }
+	 
+		public Integer getPartition() {
+	        return partition;
+	    }
+	 
+		@Override
+		public Long call() throws Exception {
+			S4HanaConnectionProperties props = (S4HanaConnectionProperties) instance.getConnectionProperties();
+	    	try (Connection conn = S4HanaConnectorFactory.getDatabaseConnection(props);) {
+				String schemaname = obj.getName();
+				addOperationLogLine("Initial load for " + schemaname + ", " + getPartitionText() + " started");
+				logger.info("Initial load for mapping \"{}\", {}...", schemaname, getPartitionText());
+				String sql = obj.getInitialSelect(partition);
+				SchemaHandler schemahandler = getSchema(obj.getName());
+				Schema schema = null;
+				try (PreparedStatement stmt = conn.prepareStatement(sql); ) {
+					long rowcount = 0L;
+					schema = obj.getAvroSchema();
+					beginInitialLoadTransaction(transactionid, schemaname, instance.getInstanceNumber());
+					try (ResultSet rs = stmt.executeQuery();) {
+						while (rs.next()) {
+							if (Thread.interrupted()) {
+								throw new ConnectorRuntimeException(
+										"Executing the initial load got interrupted for " + schemaname 
+										+ ", " + getPartitionText(),
+										null, null, null);
+							}
+							JexlRecord r = convert(rs, schema);
+							addRow(topic,
+									null,
+									schemahandler,
+									r,
+									RowType.INSERT,
+									null,
+									getProducerProperties().getName());
+							rowcount++;
+						}
+					}
+					addOperationLogLine("Initial load for " + schemaname + ", " + getPartitionText() + " finished, loaded " + String.valueOf(rowcount) + " rows");
+					logger.info("Initial load for mapping \"{}\", {} ... completed, loaded {} rows", schemaname, getPartitionText(), rowcount);
+					return rowcount;
+				} catch (SQLException e) {
+					throw new ConnectorRuntimeException("Executing the initial load SQL failed with SQL error", e, 
+							"Execute the sql as Hana user \"" + getConnectionProperties().getUsername() + "\"", sql);
+				} catch (SchemaException e) {
+					throw new ConnectorRuntimeException("SchemaException thrown when assigning the values", e, 
+							null, schema.toString());
+				}
+	    	}
+	    }
+
+		private String getPartitionText() {
+			if (partition == null) {
+				return "complete table";
+			} else {
+				return "partition number " + String.valueOf(partition);
+			}
+		}
+
 	}
 }
