@@ -15,37 +15,20 @@ import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
 import org.apache.avro.Schema;
+import org.apache.kafka.common.protocol.types.SchemaException;
 
 import com.fasterxml.jackson.annotation.JsonIgnore;
 import com.fasterxml.jackson.annotation.JsonInclude.Include;
 import com.fasterxml.jackson.databind.ObjectMapper;
 
 import io.rtdi.bigdata.connector.connectorframework.exceptions.ConnectorRuntimeException;
-import io.rtdi.bigdata.connector.pipeline.foundation.SchemaConstants;
-import io.rtdi.bigdata.connector.pipeline.foundation.avrodatatypes.AvroBoolean;
-import io.rtdi.bigdata.connector.pipeline.foundation.avrodatatypes.AvroBytes;
-import io.rtdi.bigdata.connector.pipeline.foundation.avrodatatypes.AvroCLOB;
-import io.rtdi.bigdata.connector.pipeline.foundation.avrodatatypes.AvroDate;
-import io.rtdi.bigdata.connector.pipeline.foundation.avrodatatypes.AvroDecimal;
-import io.rtdi.bigdata.connector.pipeline.foundation.avrodatatypes.AvroDouble;
-import io.rtdi.bigdata.connector.pipeline.foundation.avrodatatypes.AvroFloat;
-import io.rtdi.bigdata.connector.pipeline.foundation.avrodatatypes.AvroInt;
-import io.rtdi.bigdata.connector.pipeline.foundation.avrodatatypes.AvroLong;
-import io.rtdi.bigdata.connector.pipeline.foundation.avrodatatypes.AvroNCLOB;
-import io.rtdi.bigdata.connector.pipeline.foundation.avrodatatypes.AvroNVarchar;
-import io.rtdi.bigdata.connector.pipeline.foundation.avrodatatypes.AvroSTGeometry;
-import io.rtdi.bigdata.connector.pipeline.foundation.avrodatatypes.AvroSTPoint;
-import io.rtdi.bigdata.connector.pipeline.foundation.avrodatatypes.AvroShort;
-import io.rtdi.bigdata.connector.pipeline.foundation.avrodatatypes.AvroTime;
-import io.rtdi.bigdata.connector.pipeline.foundation.avrodatatypes.AvroTimestamp;
-import io.rtdi.bigdata.connector.pipeline.foundation.avrodatatypes.AvroTimestampMicros;
-import io.rtdi.bigdata.connector.pipeline.foundation.avrodatatypes.AvroVarchar;
 import io.rtdi.bigdata.connector.pipeline.foundation.exceptions.PropertiesException;
-import io.rtdi.bigdata.connector.pipeline.foundation.exceptions.SchemaException;
-import io.rtdi.bigdata.connector.pipeline.foundation.recordbuilders.AvroField;
-import io.rtdi.bigdata.connector.pipeline.foundation.recordbuilders.SchemaBuilder;
-import io.rtdi.bigdata.connector.pipeline.foundation.recordbuilders.ValueSchema;
 import io.rtdi.bigdata.connector.pipeline.foundation.utils.FileNameEncoder;
+import io.rtdi.bigdata.kafka.avro.SchemaConstants;
+import io.rtdi.bigdata.kafka.avro.datatypes.*;
+import io.rtdi.bigdata.kafka.avro.recordbuilders.AvroField;
+import io.rtdi.bigdata.kafka.avro.recordbuilders.SchemaBuilder;
+import io.rtdi.bigdata.kafka.avro.recordbuilders.ValueSchema;
 
 public class S4HanaTableMapping {
 	private String mastertable; // e.g. salesorder as L1

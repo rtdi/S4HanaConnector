@@ -21,9 +21,9 @@ import java.util.concurrent.ExecutionException;
 import java.util.concurrent.Executors;
 import java.util.concurrent.Future;
 import java.util.concurrent.ThreadPoolExecutor;
-import java.util.concurrent.TimeUnit;
 
 import org.apache.avro.Schema;
+import org.apache.kafka.common.protocol.types.SchemaException;
 
 import io.rtdi.bigdata.connector.connectorframework.Producer;
 import io.rtdi.bigdata.connector.connectorframework.controller.ProducerInstanceController;
@@ -32,13 +32,11 @@ import io.rtdi.bigdata.connector.pipeline.foundation.SchemaHandler;
 import io.rtdi.bigdata.connector.pipeline.foundation.TopicHandler;
 import io.rtdi.bigdata.connector.pipeline.foundation.TopicName;
 import io.rtdi.bigdata.connector.pipeline.foundation.avro.JexlGenericData.JexlRecord;
-import io.rtdi.bigdata.connector.pipeline.foundation.enums.RowType;
-import io.rtdi.bigdata.connector.pipeline.foundation.enums.RuleResult;
 import io.rtdi.bigdata.connector.pipeline.foundation.exceptions.PipelineRuntimeException;
 import io.rtdi.bigdata.connector.pipeline.foundation.exceptions.PropertiesException;
-import io.rtdi.bigdata.connector.pipeline.foundation.exceptions.SchemaException;
-import io.rtdi.bigdata.connector.pipeline.foundation.mapping.RecordMapping;
 import io.rtdi.bigdata.connector.pipeline.foundation.utils.AvroNameEncoder;
+import io.rtdi.bigdata.kafka.avro.RowType;
+import io.rtdi.bigdata.kafka.avro.RuleResult;
 
 /**
  * This is a trigger based S4Hana connector.
