@@ -8,7 +8,7 @@
 	<packaging>war</packaging>
 	<properties>
 		<project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
-		<io.rtdi.bigdata.connector.version>0.10.11</io.rtdi.bigdata.connector.version>
+		<io.rtdi.bigdata.connector.version>0.10.12</io.rtdi.bigdata.connector.version>
 	</properties>
 	<build>
 		<finalName>${project.artifactId}</finalName>

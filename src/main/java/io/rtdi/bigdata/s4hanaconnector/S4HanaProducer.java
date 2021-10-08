@@ -18,10 +18,9 @@ import java.util.Map;
 import java.util.Set;
 import java.util.concurrent.Callable;
 import java.util.concurrent.ExecutionException;
+import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.Future;
-import java.util.concurrent.ThreadPoolExecutor;
-
 import org.apache.avro.Schema;
 import org.apache.kafka.common.protocol.types.SchemaException;
 
@@ -513,10 +512,18 @@ public class S4HanaProducer extends Producer<S4HanaConnectionProperties, S4HanaP
 		List<InitialLoadTask> tasks = new ArrayList<>();
 		try (PreparedStatement stmt = conn.prepareStatement(sql);) {
 			stmt.setString(1, sourcedbschema);
-			stmt.setString(2, schemaname);
+			stmt.setString(2, obj.getMastertable());
 			try (ResultSet rs = stmt.executeQuery();) {
 				while (rs.next()) {
-					InitialLoadTask t = new InitialLoadTask(obj, transactionid, rs.getInt(1));
+					Integer partition = null;
+					/*
+					 * The m_cs_partitions table either has one row with partition = 0 or n rows with partition = 1..n.
+					 * None-partitioned tables should have partition = NULL. 
+					 */
+					if (rs.getInt(1) != 0) {
+						partition = rs.getInt(1);
+					}
+					InitialLoadTask t = new InitialLoadTask(obj, transactionid, partition);
 					tasks.add(t);
 				}
 			}
@@ -526,7 +533,7 @@ public class S4HanaProducer extends Producer<S4HanaConnectionProperties, S4HanaP
 			}
 			beginInitialLoadTransaction(transactionid, schemaname, instance.getInstanceNumber());
 			List<Future<Long>> futures = Collections.synchronizedList(new LinkedList<>());
-			ThreadPoolExecutor executor = (ThreadPoolExecutor) Executors.newWorkStealingPool(10);
+			ExecutorService executor = Executors.newWorkStealingPool(10);
 			for (InitialLoadTask t : tasks) {
 				futures.add(executor.submit(t));
 			}
@@ -542,7 +549,7 @@ public class S4HanaProducer extends Producer<S4HanaConnectionProperties, S4HanaP
 					if (f.isDone()) {
 						try {
 							rowcount += f.get();
-							futures.remove(f);
+							iter.remove();
 						} catch (ExecutionException | InterruptedException e) {
 							/*
 							 * If one partition failed, stop all other initial load threads asap
@@ -580,6 +587,7 @@ public class S4HanaProducer extends Producer<S4HanaConnectionProperties, S4HanaP
 	    public InitialLoadTask(S4HanaTableMapping obj, String transactionid, Integer partition) {
 	        this.partition = partition;
 	        this.obj = obj;
+	        this.transactionid = transactionid;
 	    }
 	 
 		public Integer getPartition() {
@@ -599,7 +607,6 @@ public class S4HanaProducer extends Producer<S4HanaConnectionProperties, S4HanaP
 				try (PreparedStatement stmt = conn.prepareStatement(sql); ) {
 					long rowcount = 0L;
 					schema = obj.getAvroSchema();
-					beginInitialLoadTransaction(transactionid, schemaname, instance.getInstanceNumber());
 					try (ResultSet rs = stmt.executeQuery();) {
 						while (rs.next()) {
 							if (Thread.interrupted()) {
@@ -638,6 +645,10 @@ public class S4HanaProducer extends Producer<S4HanaConnectionProperties, S4HanaP
 			} else {
 				return "partition number " + String.valueOf(partition);
 			}
+		}
+
+		public String getTransactionid() {
+			return transactionid;
 		}
 
 	}

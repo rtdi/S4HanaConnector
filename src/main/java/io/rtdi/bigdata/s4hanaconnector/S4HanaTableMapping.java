@@ -746,8 +746,9 @@ public class S4HanaTableMapping {
 		select.append(getMastertable());
 		select.append("\" ");
 		if (partition != null) {
-			select.append(" partition ");
+			select.append(" partition (");
 			select.append(partition);
+			select.append(") ");
 		}
 		select.append(" as ").append(getAliasIdentifier());
 		return select.toString();
