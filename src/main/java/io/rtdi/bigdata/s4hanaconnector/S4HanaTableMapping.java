@@ -15,37 +15,20 @@ import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
 import org.apache.avro.Schema;
+import org.apache.kafka.common.protocol.types.SchemaException;
 
 import com.fasterxml.jackson.annotation.JsonIgnore;
 import com.fasterxml.jackson.annotation.JsonInclude.Include;
 import com.fasterxml.jackson.databind.ObjectMapper;
 
 import io.rtdi.bigdata.connector.connectorframework.exceptions.ConnectorRuntimeException;
-import io.rtdi.bigdata.connector.pipeline.foundation.SchemaConstants;
-import io.rtdi.bigdata.connector.pipeline.foundation.avrodatatypes.AvroBoolean;
-import io.rtdi.bigdata.connector.pipeline.foundation.avrodatatypes.AvroBytes;
-import io.rtdi.bigdata.connector.pipeline.foundation.avrodatatypes.AvroCLOB;
-import io.rtdi.bigdata.connector.pipeline.foundation.avrodatatypes.AvroDate;
-import io.rtdi.bigdata.connector.pipeline.foundation.avrodatatypes.AvroDecimal;
-import io.rtdi.bigdata.connector.pipeline.foundation.avrodatatypes.AvroDouble;
-import io.rtdi.bigdata.connector.pipeline.foundation.avrodatatypes.AvroFloat;
-import io.rtdi.bigdata.connector.pipeline.foundation.avrodatatypes.AvroInt;
-import io.rtdi.bigdata.connector.pipeline.foundation.avrodatatypes.AvroLong;
-import io.rtdi.bigdata.connector.pipeline.foundation.avrodatatypes.AvroNCLOB;
-import io.rtdi.bigdata.connector.pipeline.foundation.avrodatatypes.AvroNVarchar;
-import io.rtdi.bigdata.connector.pipeline.foundation.avrodatatypes.AvroSTGeometry;
-import io.rtdi.bigdata.connector.pipeline.foundation.avrodatatypes.AvroSTPoint;
-import io.rtdi.bigdata.connector.pipeline.foundation.avrodatatypes.AvroShort;
-import io.rtdi.bigdata.connector.pipeline.foundation.avrodatatypes.AvroTime;
-import io.rtdi.bigdata.connector.pipeline.foundation.avrodatatypes.AvroTimestamp;
-import io.rtdi.bigdata.connector.pipeline.foundation.avrodatatypes.AvroTimestampMicros;
-import io.rtdi.bigdata.connector.pipeline.foundation.avrodatatypes.AvroVarchar;
 import io.rtdi.bigdata.connector.pipeline.foundation.exceptions.PropertiesException;
-import io.rtdi.bigdata.connector.pipeline.foundation.exceptions.SchemaException;
-import io.rtdi.bigdata.connector.pipeline.foundation.recordbuilders.AvroField;
-import io.rtdi.bigdata.connector.pipeline.foundation.recordbuilders.SchemaBuilder;
-import io.rtdi.bigdata.connector.pipeline.foundation.recordbuilders.ValueSchema;
 import io.rtdi.bigdata.connector.pipeline.foundation.utils.FileNameEncoder;
+import io.rtdi.bigdata.kafka.avro.SchemaConstants;
+import io.rtdi.bigdata.kafka.avro.datatypes.*;
+import io.rtdi.bigdata.kafka.avro.recordbuilders.AvroField;
+import io.rtdi.bigdata.kafka.avro.recordbuilders.SchemaBuilder;
+import io.rtdi.bigdata.kafka.avro.recordbuilders.ValueSchema;
 
 public class S4HanaTableMapping {
 	private String mastertable; // e.g. salesorder as L1
@@ -60,7 +43,7 @@ public class S4HanaTableMapping {
 	private String username;
 	private String name;
 	private String deltaselect;
-	private String initialselect;
+	private StringBuffer initialselectprojection;
 
 	public S4HanaTableMapping() {
 		super();
@@ -415,7 +398,7 @@ public class S4HanaTableMapping {
 		createTrigger();
 		createView();
 		deltaselect = createSelectDelta().toString();
-		initialselect = createSelectInitial().toString();
+		initialselectprojection = createProjectionInitial(this);
 	}
 
 	private void createView() throws ConnectorRuntimeException {
@@ -481,20 +464,6 @@ public class S4HanaTableMapping {
 		select.append("on (");
 		select.append(conditions);
 		select.append(");\r\n");
-		return select;
-	}
-
-	private StringBuffer createSelectInitial() {
-		StringBuffer select = new StringBuffer();
-		select.append("select 'I' as _change_type, \r\n");
-		select.append("null as _transactionid, \r\n");
-		select.append(getAliasIdentifier()).append(".\"$rowid$\" as \"").append(SchemaConstants.SCHEMA_COLUMN_SOURCE_ROWID).append("\", \r\n");
-		select.append(createProjectionInitial(this));
-		select.append("\r\n from \"");
-		select.append(sourcedbschema);
-		select.append("\".\"");
-		select.append(getMastertable());
-		select.append("\" as ").append(getAliasIdentifier());
 		return select;
 	}
 
@@ -763,12 +732,26 @@ public class S4HanaTableMapping {
 		protected String getTableColumnName() {
 			return tablecolumnname;
 		}
-
-
 	}
 
-	public String getInitialSelect() {
-		return initialselect;
+	public String getInitialSelect(Integer partition) {
+		StringBuffer select = new StringBuffer();
+		select.append("select 'I' as _change_type, \r\n");
+		select.append("null as _transactionid, \r\n");
+		select.append(getAliasIdentifier()).append(".\"$rowid$\" as \"").append(SchemaConstants.SCHEMA_COLUMN_SOURCE_ROWID).append("\", \r\n");
+		select.append(initialselectprojection);
+		select.append("\r\n from \"");
+		select.append(sourcedbschema);
+		select.append("\".\"");
+		select.append(getMastertable());
+		select.append("\" ");
+		if (partition != null) {
+			select.append(" partition (");
+			select.append(partition);
+			select.append(") ");
+		}
+		select.append(" as ").append(getAliasIdentifier());
+		return select.toString();
 	}
 
 	@Override
