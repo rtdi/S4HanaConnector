@@ -20,9 +20,11 @@ For example [http://localhost:80/](http://localhost:80/) might do the trick of t
 
 The default login for this startup method is: **rtdi / rtdi!io**
 
-The probably better start command is to mount two host directories into the container. In this example the host's /data/files contains all files to be loaded into Kafka and the /data/config is an (initially) empty directory where all settings made when configuring the connector will be stored permanently.
+The probably better start command is to mount two host directories into the container, the rtdiconfig directory where all settings made when configuring the connector will be stored permanently and the security directory for web server specific settings like user database and SSL certificates.
 
-    docker run -d -p 80:8080 --rm -v /data/files:/data/ -v /data/config:/usr/local/tomcat/conf/security \
+    docker run -d -p 80:8080 --rm -v /data/files:/data/ \
+       -v /home/dir/rtdiconfig:/usr/local/tomcat/conf/rtdiconfig \
+       -v /home/dir/security:/usr/local/tomcat/conf/security \
         --name s4hanaconnector  rtdi/s4hanaconnector
 
 
