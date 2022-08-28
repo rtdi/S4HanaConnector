@@ -25,5 +25,11 @@
                 <Input value="{source>schemaname}" />
             </t:template>
         </t:Column>
+        <t:Column >
+            <Label text="Initial Load where clause"/>
+            <t:template>
+                <Input value="{source>initialloadwhere}" />
+            </t:template>
+        </t:Column>
     </t:columns>
 </t:Table>

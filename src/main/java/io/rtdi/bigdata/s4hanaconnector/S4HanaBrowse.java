@@ -109,6 +109,7 @@ public class S4HanaBrowse extends BrowsingService<S4HanaConnectionProperties> {
 		private String tablename;
 		private String schemaname;
 		private boolean imported;
+		private String initialloadwhere;
 		
 		public TableImport() {
 			super();
@@ -139,6 +140,14 @@ public class S4HanaBrowse extends BrowsingService<S4HanaConnectionProperties> {
 
 		public void setSchemaname(String schemaname) {
 			this.schemaname = schemaname;
+		}
+
+		public String getInitialloadwhere() {
+			return initialloadwhere;
+		}
+
+		public void setInitialloadwhere(String initialloadwhere) {
+			this.initialloadwhere = initialloadwhere;
 		}
 	}
 
