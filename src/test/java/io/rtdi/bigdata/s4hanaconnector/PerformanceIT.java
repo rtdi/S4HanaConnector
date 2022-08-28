@@ -69,6 +69,7 @@ public class PerformanceIT {
 				connprops.getSourceSchema(),
 				TABLENAME,
 				"L1",
+				connprops.getSourceSchema(),
 				browser.getConnection());
 		entity.write(browser.getBusinessObjectDirectory());
 		logger.info("setup of environment is completed");

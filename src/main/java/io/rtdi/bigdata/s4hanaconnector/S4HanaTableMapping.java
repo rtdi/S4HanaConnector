@@ -44,12 +44,13 @@ public class S4HanaTableMapping {
 	private String name;
 	private String deltaselect;
 	private StringBuffer initialselectprojection;
+	private String initialloadwhere;
 
 	public S4HanaTableMapping() {
 		super();
 	}
 
-	public S4HanaTableMapping(String name, String username, String sourcedbschema, String mastertable, String alias, Connection conn) throws ConnectorRuntimeException {
+	public S4HanaTableMapping(String name, String username, String sourcedbschema, String mastertable, String alias, String initialloadwhere, Connection conn) throws ConnectorRuntimeException {
 		super();
 		this.mastertable = mastertable;
 		this.alias = alias;
@@ -57,6 +58,7 @@ public class S4HanaTableMapping {
 		this.username = username;
 		this.conn = conn;
 		this.name = name;
+		this.initialloadwhere = initialloadwhere;
 		addColumns();
 	}
 
@@ -248,6 +250,7 @@ public class S4HanaTableMapping {
 		this.columnmappings = data.getColumnmappings();
 		this.pkcolumns = data.getPKColumns();
 		this.alias = data.getAlias();
+		this.initialloadwhere = data.getInitialloadwhere();
 	}
 
 	public void setMastertable(String mastertable) {
@@ -751,12 +754,23 @@ public class S4HanaTableMapping {
 			select.append(") ");
 		}
 		select.append(" as ").append(getAliasIdentifier());
+		if (initialloadwhere != null) {
+			select.append(" where ").append(initialloadwhere);
+		}
 		return select.toString();
 	}
 
 	@Override
 	public String toString() {
 		return mastertable;
+	}
+
+	public String getInitialloadwhere() {
+		return initialloadwhere;
+	}
+
+	public void setInitialloadwhere(String initialloadwhere) {
+		this.initialloadwhere = initialloadwhere;
 	}
 
 
