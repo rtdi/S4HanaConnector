@@ -8,5 +8,4 @@ ADD https://github.com/rtdi/S4HanaConnector/releases/latest/download/s4hanaconne
 EXPOSE 8080
 EXPOSE 8443
 
-
 CMD ["appcontainer.sh"]
