@@ -4,11 +4,11 @@
 	<modelVersion>4.0.0</modelVersion>
 	<groupId>io.rtdi.bigdata.connector</groupId>
 	<artifactId>s4hanaconnector</artifactId>
-	<version>0.9.39</version>
+	<version>0.9.41</version>
 	<packaging>war</packaging>
 	<properties>
 		<project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
-		<io.rtdi.bigdata.connector.version>0.10.19</io.rtdi.bigdata.connector.version>
+		<io.rtdi.bigdata.connector.version>0.10.20</io.rtdi.bigdata.connector.version>
 	</properties>
 	<build>
 		<finalName>${project.artifactId}</finalName>
@@ -62,7 +62,7 @@
 		<dependency>
 		  <groupId>jakarta.servlet</groupId>
 		  <artifactId>jakarta.servlet-api</artifactId>
-		  <version>5.0.0</version>
+		  <version>6.0.0</version>
 		  <scope>provided</scope>
 		</dependency>
 	</dependencies>
