@@ -4,7 +4,7 @@
 	<modelVersion>4.0.0</modelVersion>
 	<groupId>io.rtdi.bigdata.connector</groupId>
 	<artifactId>s4hanaconnector</artifactId>
-	<version>0.9.41</version>
+	<version>0.9.42</version>
 	<packaging>war</packaging>
 	<properties>
 		<project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
